@@ -1,4 +1,4 @@
-# module-template
+# nvim-treesitter
 A repository template to create you own nvim-treesitter module !
 
 Please find below the list of things you will need to do to get going !
