@@ -1,1 +1,1 @@
-lua require("nvim-treesitter").init()
+lua require("nvim-treeclimber").init()
