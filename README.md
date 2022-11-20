@@ -5,12 +5,17 @@ Takes inspiration from [ParEdit](https://calva.io/paredit/).
 
 ## Usage
 
-| Key binding | Action           | Demo                                                |
-| ----------- | ---------------- | --------------------------------------------------- |
-| `alt-h`     | Select backward  | ![select-backward](./doc/images/select-prev.gif)    |
-| `alt-j`     | Shrink selection | ![shrink-selection](./doc/images/select-shrink.gif) |
-| `alt-k`     | Expand selection | ![expand-selection](./doc/images/select-expand.gif) |
-| `alt-l`     | Select forward   | ![select-forward](./doc/images/select-next.gif)     |
+| Key binding   | Action                                                                                                                                                                            | Demo                                                                     |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `alt-h`       | Select the previous sibling node.                                                                                                                                                 | ![select-backward](./doc/images/select-prev.gif)                         |
+| `alt-j`       | Shrink selection. The video also shows growing the selection first. Shrinking selects a child node from the current node, or will undo the action of a previous expand operation. | ![shrink-selection](./doc/images/select-shrink.gif)                      |
+| `alt-k`       | Expand selection by selecting the parent of the current node or node under the cursor.                                                                                            | ![expand-selection](./doc/images/select-expand.gif)                      |
+| `alt-l`       | Select the next sibling node.                                                                                                                                                     | ![select-forward](./doc/images/select-next.gif)                          |
+| `alt-shift-l` | Add the next sibling to the selection.                                                                                                                                            | ![grow selection next sibling](./doc/images/grow-selection-next.gif)     |
+| `alt-shift-h` | Add the previous sibling to the selection.                                                                                                                                        | ![grow selection previous sibling](./doc/images/grow-selection-prev.gif) |
+| `alt-[`       | Select the first sibling relative to the current node.                                                                                                                            | ![select first sibling](./doc/images/select-first-sibling.gif)           |
+| `alt-]`       | Select the last sibling relative to the current node .                                                                                                                            | ![select last sibling](./doc/images/select-last-sibling.gif)             |
+| `alt-g`       | Selec the top level node relative to the cursor or selection.                                                                                                                     | ![select top level node](./doc/images/select-top-level.gif)              |
 
 ### Commands
 
@@ -110,3 +115,7 @@ vim.keymap.set({ "n", "x", "o" }, "<M-L>", tc.select_grow_forward, { desc = "Add
 
 vim.keymap.set({ "n", "x", "o" }, "<M-H>", tc.select_grow_backward, { desc = "Add the next node to the selection" })
 ```
+
+---
+
+Copyright Dylan Kendal 2022.
