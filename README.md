@@ -20,7 +20,7 @@ Requires that [difft](https://github.com/Wilfred/difftastic) is available in you
 
 To use, make your first selection and call `:TCDiffThis`, then make your second selection and call `:TCDiffThis` again.
 
-![:TCDiffThis video demo](./doc/images/tc-diff-this.mp4)
+![:TCDiffThis video demo](./doc/images/tc-diff-this.webm)
 
 ## Installation
 
