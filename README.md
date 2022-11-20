@@ -3,6 +3,25 @@
 Neovim plugin for treesitter based navigation and selection.
 Takes inspiration from [ParEdit](https://calva.io/paredit/).
 
+## Usage
+
+| Key binding | Action           | Demo                                                |
+| ----------- | ---------------- | --------------------------------------------------- |
+| `alt-h`     | Select backward  | ![select-backward](./doc/images/select-prev.gif)    |
+| `alt-j`     | Shrink selection | ![shrink-selection](./doc/images/select-shrink.gif) |
+| `alt-k`     | Expand selection | ![expand-selection](./doc/images/select-expand.gif) |
+| `alt-l`     | Select forward   | ![select-forward](./doc/images/select-next.gif)     |
+
+### Commands
+
+**:TCDiffThis**
+Diff two visual selections based on their AST difference.
+Requires that [difft](https://github.com/Wilfred/difftastic) is available in your path.
+
+To use, make your first selection and call `:TCDiffThis`, then make your second selection and call `:TCDiffThis` again.
+
+![:TCDiffThis video demo](./doc/images/tc-diff-this.mp4)
+
 ## Installation
 
 ```lua
