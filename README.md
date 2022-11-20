@@ -12,14 +12,14 @@ require('nvim-treeclimber').setup()
 ```
 
 If you want to change the default keybindings, call `require('nvim-treeclimber')` rather than calling setup.
-See (configuration)[#configuration].
+See [configuration](#configuration).
 
 ## Dependencies
 
 At the moment nvim-treeclimber depends on [Lush](https://github.com/rktjmp/lush.nvim) to provide the default highlight groups that are based on your colorscheme.
 This is a temporary dependency and will be removed in the future.
 
-If you want to use this plugin without lush manually configure the plugin, see (configuration)[#configuration].
+If you want to use this plugin without lush manually configure the plugin, see [configuration](#configuration).
 
 ## Configuration
 
