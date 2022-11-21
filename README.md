@@ -5,17 +5,17 @@ Takes inspiration from [ParEdit](https://calva.io/paredit/).
 
 ## Usage
 
-| Key binding   | Action                                                                                                                                                                            | Demo                                                                     |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `alt-h`       | Select the previous sibling node.                                                                                                                                                 | ![select-backward](./doc/images/select-prev.gif)                         |
-| `alt-j`       | Shrink selection. The video also shows growing the selection first. Shrinking selects a child node from the current node, or will undo the action of a previous expand operation. | ![shrink-selection](./doc/images/select-shrink.gif)                      |
-| `alt-k`       | Expand selection by selecting the parent of the current node or node under the cursor.                                                                                            | ![expand-selection](./doc/images/select-expand.gif)                      |
-| `alt-l`       | Select the next sibling node.                                                                                                                                                     | ![select-forward](./doc/images/select-next.gif)                          |
-| `alt-shift-l` | Add the next sibling to the selection.                                                                                                                                            | ![grow selection next sibling](./doc/images/grow-selection-next.gif)     |
-| `alt-shift-h` | Add the previous sibling to the selection.                                                                                                                                        | ![grow selection previous sibling](./doc/images/grow-selection-prev.gif) |
-| `alt-[`       | Select the first sibling relative to the current node.                                                                                                                            | ![select first sibling](./doc/images/select-first-sibling.gif)           |
-| `alt-]`       | Select the last sibling relative to the current node .                                                                                                                            | ![select last sibling](./doc/images/select-last-sibling.gif)             |
-| `alt-g`       | Selec the top level node relative to the cursor or selection.                                                                                                                     | ![select top level node](./doc/images/select-top-level.gif)              |
+| Key binding   | Action                                                                                                                                                                            | Demo                                                                                                                          |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `alt-h`       | Select the previous sibling node.                                                                                                                                                 | ![select-prev](https://user-images.githubusercontent.com/3162299/203088192-5c3a7f49-aa8f-4927-b9f2-1dc9c5245364.gif)          |
+| `alt-j`       | Shrink selection. The video also shows growing the selection first. Shrinking selects a child node from the current node, or will undo the action of a previous expand operation. | ![select-shrink](https://user-images.githubusercontent.com/3162299/203088198-1c326834-bf6f-4782-9750-a04e319d449d.gif)        |
+| `alt-k`       | Expand selection by selecting the parent of the current node or node under the cursor.                                                                                            | ![select-expand](https://user-images.githubusercontent.com/3162299/203088161-c29d3413-4e58-4da4-ae7e-f8ab6b379157.gif)        |
+| `alt-l`       | Select the next sibling node.                                                                                                                                                     | ![select-next](https://user-images.githubusercontent.com/3162299/203088185-3f0cb56a-a6b0-4f02-b402-c1bd8adbacae.gif)          |
+| `alt-shift-l` | Add the next sibling to the selection.                                                                                                                                            | ![grow-selection-next](https://user-images.githubusercontent.com/3162299/203088148-4d486a42-4359-436b-b446-f1947bf4ec46.gif)  |
+| `alt-shift-h` | Add the previous sibling to the selection.                                                                                                                                        | ![grow-selection-prev](https://user-images.githubusercontent.com/3162299/203088157-84a4510e-eb5c-4689-807a-6540c0593098.gif)  |
+| `alt-[`       | Select the first sibling relative to the current node.                                                                                                                            | ![select-first-sibling](https://user-images.githubusercontent.com/3162299/203088171-94a044e4-a07d-428b-a2be-c62dfc061672.gif) |
+| `alt-]`       | Select the last sibling relative to the current node .                                                                                                                            | ![select-last-sibling](https://user-images.githubusercontent.com/3162299/203088178-5c8a2286-1b67-48c6-be6d-16729cb0851c.gif)  |
+| `alt-g`       | Selec the top level node relative to the cursor or selection.                                                                                                                     | ![select-top-level](https://user-images.githubusercontent.com/3162299/203088210-2846ab50-18ff-48d2-aef1-308369cbc395.gif)     |
 
 ### Commands
 
@@ -25,7 +25,7 @@ Requires that [difft](https://github.com/Wilfred/difftastic) is available in you
 
 To use, make your first selection and call `:TCDiffThis`, then make your second selection and call `:TCDiffThis` again.
 
-https://user-images.githubusercontent.com/3162299/202931208-6afd1b0f-ac17-4ee8-a8b2-09cb45d2d0f0.mp4
+[tc-diff-this.webm](https://user-images.githubusercontent.com/3162299/203088217-a827f8fc-ea20-4da7-95fe-884e3d82daa5.webm)
 
 ## Installation
 
