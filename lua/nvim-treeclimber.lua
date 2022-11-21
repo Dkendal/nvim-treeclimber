@@ -189,7 +189,6 @@ function M.show_control_flow()
 					local sr1, sc1, er1, ec1 = n:range()
 					local sr2, sc2, er2, ec2 = prev:range()
 					if sr1 <= sr2 and (sr1 ~= sr2 or sc1 <= sc2) and er1 >= er2 and (er1 ~= er2 or ec1 >= ec2) then
-						-- push({ start = node:start(), msg = "then" })
 						break
 					end
 				end
@@ -752,6 +751,12 @@ a.nvim_create_user_command(
 	"TCHighlightExternalDefinitions",
 	M.highlight_external_definitions,
 	{ force = true, range = true, desc = "WIP" }
+)
+
+a.nvim_create_user_command(
+	"TCShowControlFlow",
+	M.show_control_flow,
+	{ force = true, range = true, desc = "Populate the quick fix with all branches required to reach the current node" }
 )
 
 return M

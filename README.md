@@ -5,6 +5,8 @@ Takes inspiration from [ParEdit](https://calva.io/paredit/).
 
 ## Usage
 
+### Navigation
+
 | Key binding   | Action                                                                                                                                                                            | Demo                                                                                                                          |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `alt-h`       | Select the previous sibling node.                                                                                                                                                 | ![select-prev](https://user-images.githubusercontent.com/3162299/203088192-5c3a7f49-aa8f-4927-b9f2-1dc9c5245364.gif)          |
@@ -17,15 +19,28 @@ Takes inspiration from [ParEdit](https://calva.io/paredit/).
 | `alt-]`       | Select the last sibling relative to the current node .                                                                                                                            | ![select-last-sibling](https://user-images.githubusercontent.com/3162299/203088178-5c8a2286-1b67-48c6-be6d-16729cb0851c.gif)  |
 | `alt-g`       | Selec the top level node relative to the cursor or selection.                                                                                                                     | ![select-top-level](https://user-images.githubusercontent.com/3162299/203088210-2846ab50-18ff-48d2-aef1-308369cbc395.gif)     |
 
+### Inspection
+
+| Key binding | Action                                                                      | Demo                                     |
+| ----------- | --------------------------------------------------------------------------- | ---------------------------------------- |
+| `leader-k`  | Populate the quick fix with all branches required to reach the current node | [:TCShowControlFlow](#tcshowcontrolflow) |
+
 ### Commands
 
-**:TCDiffThis**
+#### :TCDiffThis
+
 Diff two visual selections based on their AST difference.
 Requires that [difft](https://github.com/Wilfred/difftastic) is available in your path.
 
 To use, make your first selection and call `:TCDiffThis`, then make your second selection and call `:TCDiffThis` again.
 
 [tc-diff-this.webm](https://user-images.githubusercontent.com/3162299/203088217-a827f8fc-ea20-4da7-95fe-884e3d82daa5.webm)
+
+#### :TCShowControlFlow
+
+Populate the quick fix with all branches required to reach the current node.
+
+https://user-images.githubusercontent.com/3162299/203097777-a9a84c2d-8dec-4db8-a4c7-4c9a66ca26fe.mp4
 
 ## Installation
 
