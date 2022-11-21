@@ -91,7 +91,7 @@ vim.keymap.set("n", "<leader>k", tc.show_control_flow, {})
 
 vim.keymap.set({ "x", "o" }, "i.", tc.select_current_node, { desc = "select current node" })
 
-vim.keymap.set({ "x", "o" }, "vim.api.", tc.select_expand, { desc = "select parent node" })
+vim.keymap.set({ "x", "o" }, "a.", tc.select_expand, { desc = "select parent node" })
 
 vim.keymap.set(
   { "n", "x", "o" },
