@@ -8,14 +8,17 @@ local logger = require("nvim-treeclimber.logger").new("Treeclimber log")
 local pos = require("nvim-treeclimber.data.pos")
 local pos_range = require("nvim-treeclimber.data.pos_range")
 
--- Clear logger for development
-logger.clear()
-
 local M = {}
 
 local ns = a.nvim_create_namespace("nvim-treeclimber")
--- For resourcing the file
-a.nvim_buf_clear_namespace(0, ns, 0, -1)
+
+-- For reloading the file in dev
+if vim.g.treeclimber_loaded then
+	logger.clear()
+	a.nvim_buf_clear_namespace(0, ns, 0, -1)
+else
+	vim.g.treeclimber_loaded = true
+end
 
 local visit_list = {}
 
@@ -613,6 +616,5 @@ function M.highlight_external_definitions(opts)
 		end
 	end
 end
-
 
 return M
