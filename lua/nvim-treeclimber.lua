@@ -1,12 +1,12 @@
 ---@alias tsnode {}
----@alias v2 {integer, integer}
----@alias range {v2, v2}
 
 local ts = vim.treesitter
 local f = vim.fn
 local a = vim.api
 local uv = vim.loop
 local logger = require("nvim-treeclimber.logger").new("Treeclimber log")
+local v2 = require("nvim-treeclimber.data.v2")
+local v2_range = require("nvim-treeclimber.data.v2_range")
 
 -- Clear logger for development
 logger.clear()
@@ -16,75 +16,6 @@ local M = {}
 local ns = a.nvim_create_namespace("nvim-treeclimber")
 -- For resourcing the file
 a.nvim_buf_clear_namespace(0, ns, 0, -1)
-
--- Convert 1 indexed row to 0 indexed
--- Vim pos -> Tree-sitter pos
----@param v v2
----@return v2
-local function v2_to_ts(v)
-	return { v[1] - 1, v[2] }
-end
-
--- Convert 0 indexed row to 1 indexed
--- Tree-sitter pos -> Vim pos
----@param v v2
----@return v2
-local function v2_to_vim(v)
-	return { v[1] + 1, v[2] }
-end
-
----@param a v2
----@param b v2
----@return boolean
-local function v2_gt(a, b)
-	if a[1] == b[1] then
-		return a[2] > b[2]
-	end
-	return a[1] > b[1]
-end
-
----@param a v2
----@param b v2
----@return boolean
-local function v2_eq(a, b)
-	return a[1] == b[1] and a[2] == b[2]
-end
-
----@param a v2
----@param b v2
----@return boolean
-local function v2_gte(a, b)
-	return v2_gt(a, b) or v2_eq(a, b)
-end
-
----@param a v2
----@param b v2
----@return boolean
-local function v2_lt(a, b)
-	return not v2_gt(b, a) and not v2_eq(b, a)
-end
-
----@param a v2
----@param b v2
----@return boolean
-local function v2_lte(a, b)
-	return not v2_gt(a, b)
-end
-
----@param a range
----@param b range
----@return boolean
-local function range_eq(a, b)
-	return v2_eq(a[1], b[1]) and v2_eq(a[2], b[2])
-end
-
--- A covers B
----@param a range
----@param b range
----@return boolean
-local function range_covers(a, b)
-	return v2_lte(a[1], b[1]) and v2_gte(a[2], b[2])
-end
 
 local visit_list = {}
 
@@ -263,12 +194,12 @@ function M.in_temp_win(name, lines)
 end
 
 local function visual_select_start(node)
-	local start = v2_to_vim({ node:start() })
+	local start = v2.to_vim({ node:start() })
 	a.nvim_buf_set_mark(0, ">", start[1], start[2], {})
 end
 
 local function visual_select_end(node)
-	local end_ = v2_to_vim({ node:end_() })
+	local end_ = v2.to_vim({ node:end_() })
 
 	local el = math.min(end_[1], f.line("$"))
 	local ec = math.max(end_[2] - 1, 0)
@@ -282,8 +213,8 @@ local function visual_select_node(node)
 end
 
 local function visual_select_node_end(node)
-	local start = v2_to_vim({ node:start() })
-	local end_ = v2_to_vim({ node:end_() })
+	local start = v2.to_vim({ node:start() })
+	local end_ = v2.to_vim({ node:end_() })
 
 	local el = math.min(end_[1], f.line("$"))
 	local ec = math.max(end_[2] - 1, 0)
@@ -301,8 +232,8 @@ local function resume_visual_charwise()
 end
 
 local function get_selection_range()
-	local start = v2_to_ts(a.nvim_win_get_cursor(0))
-	local end_ = v2_to_ts({ f.line("v"), f.col("v") })
+	local start = v2.to_ts(a.nvim_win_get_cursor(0))
+	local end_ = v2.to_ts({ f.line("v"), f.col("v") })
 	return start, end_
 end
 
@@ -311,7 +242,7 @@ local function get_covering_node(start, end_)
 	local tree = parser:parse()[1]
 	local root = tree:root()
 	local list = { start, end_ }
-	table.sort(list, v2_lt)
+	table.sort(list, v2.lt)
 	e, s = list[1], list[2]
 
 	-- Smallest node that covers the selection end to end
@@ -322,7 +253,7 @@ end
 
 -- Get a node above this one that would grow the selection
 local function get_larger_ancestor(node, start, end_)
-	while node and range_eq({ { node:start() }, { node:end_() } }, { start, end_ }) do
+	while node and v2_range.eq({ { node:start() }, { node:end_() } }, { start, end_ }) do
 		node = node:parent()
 	end
 
@@ -566,14 +497,14 @@ local function get_covering_nodes(start, end_)
 		return nil
 	end
 
-	if v2_eq({ parent:end_() }, end_) and v2_eq({ parent:start() }, start) then
+	if v2.eq({ parent:end_() }, end_) and v2.eq({ parent:start() }, start) then
 		return { parent }
 	end
 
 	local nodes = {}
 
 	for child in parent:iter_children() do
-		if v2_gte({ child:start() }, start) and v2_lte({ child:end_() }, end_) then
+		if v2.gte({ child:start() }, start) and v2.lte({ child:end_() }, end_) then
 			table.insert(nodes, child)
 		end
 	end
