@@ -7,6 +7,7 @@ local uv = vim.loop
 local logger = require("nvim-treeclimber.logger").new("Treeclimber log")
 local pos = require("nvim-treeclimber.data.pos")
 local pos_range = require("nvim-treeclimber.data.pos_range")
+local RingBuffer = require("nvim-treeclimber.data.ring_buffer")
 
 local M = {}
 
@@ -547,23 +548,19 @@ local function set_normal_mode()
 	a.nvim_feedkeys(a.nvim_replace_termcodes("<esc>", true, false, true), "n", false)
 end
 
-local diff_ring = { index = 0, size = 2 }
-
-function diff_ring:push(value)
-	local i = self.index % self.size + 1
-	self.index = i
-	self[i] = value
-end
+local diff_ring = RingBuffer.new(2)
 
 --- Diff two selections using difft in a new window.
 function M.diff_this(opts)
 	local text = a.nvim_buf_get_text(0, opts.line1 - 1, 0, opts.line2 - 1, -1, {})
-	diff_ring:push(text)
-	if diff_ring.index == 2 then
+	diff_ring:put(text)
+	if diff_ring.index == 1 then
 		local file_a = f.tempname()
 		local file_b = f.tempname()
-		f.writefile(diff_ring[1], file_a)
-		f.writefile(diff_ring[2], file_b)
+		local contents_a = diff_ring:get()
+		local contents_b = diff_ring:get()
+		f.writefile(contents_a, file_a)
+		f.writefile(contents_b, file_b)
 		vim.cmd("botright sp")
 		vim.cmd(table.concat({
 			"terminal",
