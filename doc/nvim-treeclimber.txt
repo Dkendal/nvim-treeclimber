@@ -1,0 +1,16 @@
+*nvim-treeclimber.txt*
+
+AUTHOR: Dylan Kendal <https://github.com/Dkendal>
+
+<https://github.com/Dkendal/nvim-treeclimber>
+
+==============================================================================
+INTRODUCTION                                                *nvim-treeclimber*
+
+==============================================================================
+COMMANDS                                           *nvim-treeclimber-commands*
+
+==============================================================================
+MAPS                                                    *nvim-treeclimber-maps*
+
+vim:tw=78:ts=8:noet:ft=help:norl:
