@@ -55,6 +55,12 @@ See [configuration](#configuration).
 
 ## Dependencies
 
+**Required**
+- [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter)
+
+**Optional**
+- [lush](https://github.com/rktjmp/lush.nvim)
+
 At the moment nvim-treeclimber depends on [Lush](https://github.com/rktjmp/lush.nvim) to provide the default highlight groups that are based on your colorscheme.
 This is a temporary dependency and will be removed in the future.
 
