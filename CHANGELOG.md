@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.0.2] - 2022-11-24
+
 ### Fixed
 
 - Uses the correct parser now by relying on `require"nvim-treesitter.parser".get_parser()`,
