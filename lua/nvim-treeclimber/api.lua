@@ -45,8 +45,14 @@ local top_level_types = {
 	["function_declaration"] = true,
 }
 
+---@param bufnr number | nil
+---@param lang string | nil
+local function get_parser(bufnr, lang)
+	return require("nvim-treesitter.parsers").get_parser(bufnr, lang)
+end
+
 local function get_root()
-	local parser = vim.treesitter.get_parser(0, vim.o.filetype, {})
+	local parser = get_parser()
 	local tree = parser:parse()[1]
 	return tree:root()
 end
@@ -242,9 +248,7 @@ local function get_selection_range()
 end
 
 local function get_covering_node(start, end_)
-	local parser = ts.get_parser(0, vim.o.filetype, {})
-	local tree = parser:parse()[1]
-	local root = tree:root()
+	local root = get_root()
 	local list = { start, end_ }
 	table.sort(list, pos.lt)
 	e, s = list[1], list[2]
