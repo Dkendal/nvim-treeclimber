@@ -4,6 +4,8 @@
 
 ### [0.0.3] - 2022-11-25
 
+### Fixed
+
 - All movement and highlight commands now only work on named nodes. Previously
   when moving to siblings anonymous nodes were also considered. The highlight
   preview showed named nodes creating some confusion.
