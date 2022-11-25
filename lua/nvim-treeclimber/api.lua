@@ -1,5 +1,3 @@
----@alias tsnode {}
-
 local ts = vim.treesitter
 local f = vim.fn
 local a = vim.api
@@ -10,6 +8,35 @@ local pos_range = require("nvim-treeclimber.data.pos_range")
 local RingBuffer = require("nvim-treeclimber.data.ring_buffer")
 
 local M = {}
+
+---@class tstree
+---@field root fun(self: tstree):tsnode
+---@field copy fun(self: tstree):tstree
+
+---@class tsnode
+---@field parent fun(self: tsnode): tsnode | nil
+---@field next_sibling fun(self: tsnode): tsnode | nil
+---@field prev_sibling fun(self: tsnode): tsnode | nil
+---@field next_named_sibling fun(self: tsnode): tsnode | nil
+---@field prev_named_sibling fun(self: tsnode): tsnode | nil
+---@field iter_children fun(self: tsnode): fun(): tsnode, string
+---@field field fun(self: tsnode, string): tsnode[]
+---@field child_count fun(self: tsnode): tsnode | nil
+---@field child fun(integer): tsnode | nil
+---@field named_child_count fun(self: tsnode): tsnode | nil
+---@field named_child fun(integer): tsnode | nil
+---@field start fun(self: tsnode): integer, integer, integer
+---@field end_ fun(self: tsnode): integer, integer, integer
+---@field range fun(self: tsnode): number, number, number, number
+---@field type fun(self: tsnode): string
+---@field symbol fun(self: tsnode): integer
+---@field named fun(self: tsnode): boolean
+---@field missing fun(self: tsnode): boolean
+---@field has_error fun(self: tsnode): boolean
+---@field sexpr fun(self: tsnode): string
+---@field id fun(self: tsnode): string
+---@field descendant_for_range fun(self: tsnode, integer, integer, integer, integer): tsnode
+---@field named_descendant_for_range fun(self: tsnode, integer, integer, integer, integer): tsnode
 
 local ns = a.nvim_create_namespace("nvim-treeclimber")
 
@@ -51,8 +78,11 @@ local function get_parser(bufnr, lang)
 	return require("nvim-treesitter.parsers").get_parser(bufnr, lang)
 end
 
+---Returns the root node of the tree from the current parser
+---@return tsnode
 local function get_root()
 	local parser = get_parser()
+	---@type tstree
 	local tree = parser:parse()[1]
 	return tree:root()
 end
@@ -99,10 +129,6 @@ local function get_node_under_cursor()
 	local root = get_root()
 	local row, col = get_cursor()
 	return root:descendant_for_range(row, col, row, col)
-end
-
-local function pos_move_cursor(r, c)
-	a.nvim_win_set_cursor(0, { r + 1, c })
 end
 
 ---@param node tsnode
@@ -247,6 +273,10 @@ local function get_selection_range()
 	return start, end_
 end
 
+---Get the node that spans the range
+---@param start pos
+---@param end_ pos
+---@return tsnode
 local function get_covering_node(start, end_)
 	local root = get_root()
 	local list = { start, end_ }
@@ -279,6 +309,8 @@ local function is_selected_cursor_start(node, start, end_)
 	return sr == start[1] and sc == start[2] and er == end_[1] and ec == end_[2]
 end
 
+---Apply highlights
+---@param node tsnode
 local function apply_decoration(node)
 	a.nvim_buf_clear_namespace(0, ns, 0, -1)
 
@@ -301,31 +333,15 @@ local function apply_decoration(node)
 		local sl, sc = unpack({ parent:start() })
 		local el, ec = unpack({ parent:end_() })
 
-		-- a.nvim_buf_set_extmark(0, ns, sl, sc + 1, {
-		-- 	hl_group = "TreeClimberParent",
-		-- 	strict = false,
-		-- 	end_line = el,
-		-- 	end_col = ec,
-		-- })
-
 		a.nvim_buf_set_extmark(0, ns, sl, sc, {
 			hl_group = "TreeClimberParentStart",
 			strict = false,
-			-- end_line = sl,
-			-- end_col = sc + 1,
 		})
 
 		for child in parent:iter_children() do
 			if child:id() ~= node:id() and child:named() then
 				local sl, sc = unpack({ child:start() })
 				local el, ec = unpack({ child:end_() })
-
-				-- 				a.nvim_buf_set_extmark(0, ns, sl, sc + 1, {
-				-- 					hl_group = "TreeClimberSibling",
-				-- 					strict = false,
-				-- 					end_line = el,
-				-- 					end_col = ec - 1,
-				-- 				})
 
 				a.nvim_buf_set_extmark(0, ns, sl, sc, {
 					hl_group = "TreeClimberSiblingBoundary",

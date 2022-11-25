@@ -1,6 +1,8 @@
 local M = {}
 
----@alias pos {integer, integer}
+---@class pos
+---@field [1] number
+---@field [2] number
 
 -- Convert 1 indexed row to 0 indexed
 -- Vim pos -> Tree-sitter pos

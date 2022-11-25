@@ -2,7 +2,9 @@ local M = {}
 
 local pos = require("nvim-treeclimber.data.pos")
 
----@alias range {pos, pos}
+---@class range
+---@field [1] pos
+---@field [2] pos
 
 ---@param a range
 ---@param b range
