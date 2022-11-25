@@ -450,8 +450,8 @@ function M.select_backward()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
-	if is_selected_cursor_start(node, start, end_) and node:prev_sibling() then
-		node = node:prev_sibling()
+	if is_selected_cursor_start(node, start, end_) and node:prev_named_sibling() then
+		node = node:prev_named_sibling()
 	end
 
 	apply_decoration(node)
@@ -463,8 +463,8 @@ function M.select_siblings_backward()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
-	while node:prev_sibling() do
-		node = node:prev_sibling()
+	while node:prev_named_sibling() do
+		node = node:prev_named_sibling()
 	end
 
 	apply_decoration(node)
@@ -489,8 +489,8 @@ function M.select_prev_node()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
-	if node:prev_sibling() then
-		node = node:prev_sibling()
+	if node:prev_named_sibling() then
+		node = node:prev_named_sibling()
 	end
 
 	apply_decoration(node)
@@ -528,7 +528,7 @@ local function get_covering_nodes(start, end_)
 	local nodes = {}
 
 	for child in parent:iter_children() do
-		if pos.gte({ child:start() }, start) and pos.lte({ child:end_() }, end_) then
+		if child:named() and pos.gte({ child:start() }, start) and pos.lte({ child:end_() }, end_) then
 			table.insert(nodes, child)
 		end
 	end
@@ -557,7 +557,7 @@ function M.select_grow_backward()
 	if nodes and #nodes > 0 then
 		local snode = nodes[1]
 		local enode = nodes[#nodes]
-		snode = snode:prev_sibling() or snode
+		snode = snode:prev_named_sibling() or snode
 		visual_select_start(snode)
 		visual_select_end(enode)
 		resume_visual_charwise()
