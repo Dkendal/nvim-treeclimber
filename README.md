@@ -44,7 +44,16 @@ https://user-images.githubusercontent.com/3162299/203097777-a9a84c2d-8dec-4db8-a
 
 ## Installation
 
+Use your preferred package manager, or the built-in package system (`:help packages`).
+
+```sh
+mkdir -p ~/.config/nvim/pack/dkendal/opt
+cd ~/.config/nvim/pack/dkendal/opt
+git clone https://github.com/dkendal/nvim-treeclimber.git
+```
+
 ```lua
+-- ~/.config/nvim/init.lua
 vim.cmd.packadd('nvim-treeclimber')
 
 require('nvim-treeclimber').setup()
@@ -58,14 +67,6 @@ See [configuration](#configuration).
 **Required**
 - [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter)
 
-**Optional**
-- [lush](https://github.com/rktjmp/lush.nvim)
-
-At the moment nvim-treeclimber depends on [Lush](https://github.com/rktjmp/lush.nvim) to provide the default highlight groups that are based on your colorscheme.
-This is a temporary dependency and will be removed in the future.
-
-If you want to use this plugin without lush manually configure the plugin, see [configuration](#configuration).
-
 ## Configuration
 
 **To use default highlight, keymaps, and commands call `require('nvim-treeclimber').setup()`.**
@@ -76,7 +77,6 @@ To manually specify the configuration options edit the below snippet as desired,
 local tc = require('nvim-treeclimber')
 
 -- Highlight groups
--- Change if you don't have Lush installed
 local color = require("nvim-treeclimber.hi")
 local bg = color.bg_hsluv("Normal")
 local fg = color.fg_hsluv("Normal")
