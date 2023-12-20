@@ -7,25 +7,45 @@ for k, v in pairs(tc) do
 	M[k] = v
 end
 
-function M.setup()
-	local color = require("nvim-treeclimber.hi")
-	local bg = color.bg_hsluv("Normal")
-	local fg = color.fg_hsluv("Normal")
-	local dim = bg.mix(fg, 20)
+function M.setup(_)
+	local function setup_hi()
+		local hi = require("nvim-treeclimber.hi")
+		local term_colors = hi.ansi_colors()
+		local hi_normal = hi.get_hl("Normal", { follow = true })
 
-	vim.api.nvim_set_hl(0, "TreeClimberHighlight", { background = dim.hex })
+		hi_normal = hi_normal and hi.HSLUVHighlight:new(hi_normal) or { bg = term_colors[0], fg = term_colors[1] }
 
-	vim.api.nvim_set_hl(0, "TreeClimberSiblingBoundary", { background = color.terminal_color_5.hex })
+		if vim.tbl_isempty(hi_normal) then
+			return
+		end
 
-	vim.api.nvim_set_hl(0, "TreeClimberSibling", { background = color.terminal_color_5.mix(bg, 40).hex, bold = true })
+		local bg = hi_normal.bg
+		local fg = hi_normal.fg
 
-	vim.api.nvim_set_hl(0, "TreeClimberParent", { background = bg.mix(fg, 2).hex })
+		local dim = bg.mix(fg, 20)
 
-	vim.api.nvim_set_hl(
-		0,
-		"TreeClimberParentStart",
-		{ background = color.terminal_color_4.mix(bg, 10).hex, bold = true }
-	)
+		vim.api.nvim_set_hl(0, "TreeClimberHighlight", { background = dim.hex })
+
+		vim.api.nvim_set_hl(0, "TreeClimberSiblingBoundary", { background = term_colors[5].hex })
+
+		vim.api.nvim_set_hl(0, "TreeClimberSibling", { background = term_colors[5].mix(bg, 40).hex, bold = true })
+
+		vim.api.nvim_set_hl(0, "TreeClimberParent", { background = bg.mix(fg, 2).hex })
+
+		vim.api.nvim_set_hl(0, "TreeClimberParentStart", { background = term_colors[4].mix(bg, 10).hex, bold = true })
+	end
+
+	setup_hi()
+
+	local group = vim.api.nvim_create_augroup("nvim-treeclimber-colorscheme", { clear = true })
+
+	vim.api.nvim_create_autocmd({ "Colorscheme" }, {
+		group = group,
+		pattern = "*",
+		callback = function()
+			setup_hi()
+		end,
+	})
 
 	vim.keymap.set("n", "<leader>k", tc.show_control_flow, {})
 
@@ -69,20 +89,20 @@ function M.setup()
 	vim.keymap.set({ "n", "x", "o" }, "<M-L>", tc.select_grow_forward, { desc = "Add the next node to the selection" })
 
 	vim.keymap.set({ "n", "x", "o" }, "<M-H>", tc.select_grow_backward, { desc = "Add the next node to the selection" })
+
+	vim.api.nvim_create_user_command("TCDiffThis", tc.diff_this, { force = true, range = true, desc = "" })
+
+	vim.api.nvim_create_user_command(
+		"TCHighlightExternalDefinitions",
+		tc.highlight_external_definitions,
+		{ force = true, range = true, desc = "WIP" }
+	)
+
+	vim.api.nvim_create_user_command("TCShowControlFlow", tc.show_control_flow, {
+		force = true,
+		range = true,
+		desc = "Populate the quick fix with all branches required to reach the current node",
+	})
 end
-
-vim.api.nvim_create_user_command("TCDiffThis", tc.diff_this, { force = true, range = true, desc = "" })
-
-vim.api.nvim_create_user_command(
-	"TCHighlightExternalDefinitions",
-	tc.highlight_external_definitions,
-	{ force = true, range = true, desc = "WIP" }
-)
-
-vim.api.nvim_create_user_command(
-	"TCShowControlFlow",
-	tc.show_control_flow,
-	{ force = true, range = true, desc = "Populate the quick fix with all branches required to reach the current node" }
-)
 
 return M

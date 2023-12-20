@@ -39,6 +39,7 @@ local M = {}
 ---@field named_descendant_for_range fun(self: tsnode, integer, integer, integer, integer): tsnode
 
 local ns = a.nvim_create_namespace("nvim-treeclimber")
+local boundaries_ns = a.nvim_create_namespace("nvim-treeclimber-boundaries")
 
 -- For reloading the file in dev
 if vim.g.treeclimber_loaded then
@@ -562,6 +563,44 @@ function M.select_grow_backward()
 		visual_select_end(enode)
 		resume_visual_charwise()
 	end
+end
+
+function M.draw_boundary()
+	a.nvim_buf_clear_namespace(0, boundaries_ns, 0, -1)
+
+	local pos_ = pos.to_ts(a.nvim_win_get_cursor(0))
+	local node = ts.get_node({ pos = pos_ })
+	-- grow selection until it matches one of the types
+
+	local i = 0
+	while true do
+		local row, col = node:start()
+		local end_row, end_col = node:end_()
+
+		a.nvim_buf_set_extmark(0, boundaries_ns, row, col, {
+			hl_group = "StatusLine" .. i,
+			end_col = end_col,
+			end_row = end_row,
+			strict = false,
+		})
+		i = i + 1
+
+		-- row, col = node:end_()
+		--
+		-- a.nvim_buf_set_extmark(0, boundaries_ns, row, col - 1, {
+		-- 	hl_group = "SignColumn",
+		-- 	end_col = col + 1,
+		-- 	strict = false,
+		-- })
+
+		node = node:parent()
+
+		if node == nil then
+			return
+		end
+	end
+
+	return node:sexpr()
 end
 
 local function set_normal_mode()
