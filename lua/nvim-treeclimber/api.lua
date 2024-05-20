@@ -263,6 +263,8 @@ end
 local function resume_visual_charwise()
 	if f.visualmode() == "v" then
 		vim.cmd.normal("gv")
+	elseif f.visualmode() == "V" or f.visualmode() == "<CTRL-V>" then
+		vim.cmd.normal("gvv")
 	else
 		vim.cmd.normal("gvgh")
 	end
