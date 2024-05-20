@@ -1,7 +1,6 @@
 local ts = vim.treesitter
 local f = vim.fn
 local a = vim.api
-local uv = vim.loop
 local logger = require("nvim-treeclimber.logger").new("Treeclimber log")
 local pos = require("nvim-treeclimber.data.pos")
 local pos_range = require("nvim-treeclimber.data.pos_range")
