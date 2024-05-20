@@ -3,6 +3,8 @@
 Neovim plugin for treesitter based navigation and selection.
 Takes inspiration from [ParEdit](https://calva.io/paredit/).
 
+Requires neovim >= 0.10.
+
 ## Usage
 
 ### Navigation
@@ -61,11 +63,6 @@ require('nvim-treeclimber').setup()
 
 If you want to change the default keybindings, call `require('nvim-treeclimber')` rather than calling setup.
 See [configuration](#configuration).
-
-## Dependencies
-
-**Required**
-- [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter)
 
 ## Configuration
 
