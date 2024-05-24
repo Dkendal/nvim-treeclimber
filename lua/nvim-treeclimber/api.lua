@@ -263,6 +263,11 @@ end
 local function resume_visual_charwise()
 	if f.visualmode() == "v" then
 		vim.cmd.normal("gv")
+	elseif
+		-- 22 is the unicode decimal representation of <C-V>
+		f.visualmode() == "V" or f.visualmode() == "\22"
+	then
+		vim.cmd.normal("gvv")
 	else
 		vim.cmd.normal("gvgh")
 	end
