@@ -75,7 +75,7 @@ local top_level_types = {
 ---@param bufnr number | nil
 ---@param lang string | nil
 local function get_parser(bufnr, lang)
-	return require("nvim-treesitter.parsers").get_parser(bufnr, lang)
+	return vim.treesitter.get_parser(bufnr, lang)
 end
 
 ---Returns the root node of the tree from the current parser
