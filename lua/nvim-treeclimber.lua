@@ -13,7 +13,8 @@ function M.setup(_)
 		local term_colors = hi.ansi_colors()
 		local hi_normal = hi.get_hl("Normal", { follow = true })
 
-		hi_normal = hi_normal and hi.HSLUVHighlight:new(hi_normal) or { bg = term_colors[0], fg = term_colors[1] }
+		hi_normal = hi_normal and hi_normal.bg and hi.HSLUVHighlight:new(hi_normal)
+			or { bg = term_colors[0], fg = term_colors[1] }
 
 		if vim.tbl_isempty(hi_normal) then
 			return
