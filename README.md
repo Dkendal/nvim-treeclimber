@@ -68,70 +68,22 @@ See [configuration](#configuration).
 
 **To use default highlight, keymaps, and commands call `require('nvim-treeclimber').setup()`.**
 
-To manually specify the configuration options edit the below snippet as desired, note that this will change in the future:
+To manually specify the configuration options, take a look at the contents of `lua/nvim-treeclimber.lua` and import or modify the portions that you need.
+
+For example, if you just want the built in user commands and highlights but you want your own keybindings, you can do the following:
 
 ```lua
+
 local tc = require('nvim-treeclimber')
 
--- Highlight groups
-local color = require("nvim-treeclimber.hi")
-local bg = color.bg_hsluv("Normal")
-local fg = color.fg_hsluv("Normal")
-local dim = bg.mix(fg, 20)
+tc.setup_augroups()
+tc.setup_user_commands()
 
-vim.api.nvim_set_hl(0, "TreeClimberHighlight", { background = dim.hex })
-
-vim.api.nvim_set_hl(0, "TreeClimberSiblingBoundary", { background = color.terminal_color_5.hex })
-
-vim.api.nvim_set_hl(0, "TreeClimberSibling", { background = color.terminal_color_5.mix(bg, 40).hex, bold = true })
-
-vim.api.nvim_set_hl(0, "TreeClimberParent", { background = bg.mix(fg, 2).hex })
-
-vim.api.nvim_set_hl(0, "TreeClimberParentStart", { background = color.terminal_color_4.mix(bg, 10).hex, bold = true })
-
--- Keymaps
+-- Copied from setup_keymaps
 vim.keymap.set("n", "<leader>k", tc.show_control_flow, {})
-
 vim.keymap.set({ "x", "o" }, "i.", tc.select_current_node, { desc = "select current node" })
-
 vim.keymap.set({ "x", "o" }, "a.", tc.select_expand, { desc = "select parent node" })
-
-vim.keymap.set(
-  { "n", "x", "o" },
-  "<M-e>",
-  tc.select_forward_end,
-  { desc = "select and move to the end of the node, or the end of the next node" }
-)
-
-vim.keymap.set(
-  { "n", "x", "o" },
-  "<M-b>",
-  tc.select_backward,
-  { desc = "select and move to the begining of the node, or the beginning of the next node" }
-)
-
-vim.keymap.set({ "n", "x", "o" }, "<M-[>", tc.select_siblings_backward, {})
-
-vim.keymap.set({ "n", "x", "o" }, "<M-]>", tc.select_siblings_forward, {})
-
-vim.keymap.set(
-  { "n", "x", "o" },
-  "<M-g>",
-  tc.select_top_level,
-  { desc = "select the top level node from the current position" }
-)
-
-vim.keymap.set({ "n", "x", "o" }, "<M-h>", tc.select_backward, { desc = "select previous node" })
-
-vim.keymap.set({ "n", "x", "o" }, "<M-j>", tc.select_shrink, { desc = "select child node" })
-
-vim.keymap.set({ "n", "x", "o" }, "<M-k>", tc.select_expand, { desc = "select parent node" })
-
-vim.keymap.set({ "n", "x", "o" }, "<M-l>", tc.select_forward, { desc = "select the next node" })
-
-vim.keymap.set({ "n", "x", "o" }, "<M-L>", tc.select_grow_forward, { desc = "Add the next node to the selection" })
-
-vim.keymap.set({ "n", "x", "o" }, "<M-H>", tc.select_grow_backward, { desc = "Add the next node to the selection" })
+...
 ```
 
 ---
