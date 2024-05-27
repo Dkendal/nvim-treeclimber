@@ -107,6 +107,10 @@ end
 function M.ansi_colors()
 	local t = {}
 
+	if not vim.g.terminal_color_0 then
+		error("Terminal colors not found see :help terminal-config")
+	end
+
 	for i = 0, 15 do
 		---@type string
 		local value = vim.g["terminal_color_" .. i]
