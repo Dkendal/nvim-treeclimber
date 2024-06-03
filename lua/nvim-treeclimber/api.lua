@@ -8,35 +8,6 @@ local RingBuffer = require("nvim-treeclimber.data.ring_buffer")
 
 local M = {}
 
----@class tstree
----@field root fun(self: tstree):tsnode
----@field copy fun(self: tstree):tstree
-
----@class tsnode
----@field parent fun(self: tsnode): tsnode | nil
----@field next_sibling fun(self: tsnode): tsnode | nil
----@field prev_sibling fun(self: tsnode): tsnode | nil
----@field next_named_sibling fun(self: tsnode): tsnode | nil
----@field prev_named_sibling fun(self: tsnode): tsnode | nil
----@field iter_children fun(self: tsnode): fun(): tsnode, string
----@field field fun(self: tsnode, string): tsnode[]
----@field child_count fun(self: tsnode): tsnode | nil
----@field child fun(integer): tsnode | nil
----@field named_child_count fun(self: tsnode): tsnode | nil
----@field named_child fun(integer): tsnode | nil
----@field start fun(self: tsnode): integer, integer, integer
----@field end_ fun(self: tsnode): integer, integer, integer
----@field range fun(self: tsnode): number, number, number, number
----@field type fun(self: tsnode): string
----@field symbol fun(self: tsnode): integer
----@field named fun(self: tsnode): boolean
----@field missing fun(self: tsnode): boolean
----@field has_error fun(self: tsnode): boolean
----@field sexpr fun(self: tsnode): string
----@field id fun(self: tsnode): string
----@field descendant_for_range fun(self: tsnode, integer, integer, integer, integer): tsnode
----@field named_descendant_for_range fun(self: tsnode, integer, integer, integer, integer): tsnode
-
 local ns = a.nvim_create_namespace("nvim-treeclimber")
 local boundaries_ns = a.nvim_create_namespace("nvim-treeclimber-boundaries")
 
@@ -58,63 +29,23 @@ function visit_list:pop()
 	return table.remove(visit_list)
 end
 
-local stack = {}
-
-function stack.push(item)
-	table.insert(stack, item)
-end
-
-function stack.pop()
-	return table.remove(stack)
-end
-
 local top_level_types = {
 	["function_declaration"] = true,
 }
 
 ---@param bufnr number | nil
 ---@param lang string | nil
+---@return vim.treesitter.LanguageTree
 local function get_parser(bufnr, lang)
 	return vim.treesitter.get_parser(bufnr, lang)
 end
 
 ---Returns the root node of the tree from the current parser
----@return tsnode
+---@return TSNode
 local function get_root()
 	local parser = get_parser()
-	---@type tstree
 	local tree = parser:parse()[1]
 	return tree:root()
-end
-
----@param a table
----@param b table
----@return boolean
---- Check if b is a subset of a
-local function array_subset(a, b)
-	for k, v in pairs(a) do
-		if type(k) == "number" then
-			if v ~= b[k] then
-				return false
-			end
-		end
-	end
-	return true
-end
-
----@param a table
----@param b table
----@return boolean
---- Check if two tables are equal by value
-local function tbl_eq(a, b)
-	if #a ~= #b then
-		return false
-	end
-	for k, v in pairs(a) do
-		if v ~= b[k] then
-			return false
-		end
-	end
 end
 
 ---@return number, number
@@ -124,14 +55,14 @@ local function get_cursor()
 	return row, col
 end
 
----@return tsnode
+---@return TSNode?
 local function get_node_under_cursor()
 	local root = get_root()
 	local row, col = get_cursor()
 	return root:descendant_for_range(row, col, row, col)
 end
 
----@param node tsnode
+---@param node TSNode
 local function tsnode_get_text(node)
 	return vim.treesitter.query.get_node_text(node, 0)
 end
@@ -148,7 +79,7 @@ function M.show_control_flow()
 	push({ start = f.line(".") - 1, msg = "[current-line]" })
 
 	while node do
-		if prev ~= node then
+		if prev and prev ~= node then
 			local type = node:type()
 			if type == "if_statement" or type == "ternary_expression" then
 				for _, n in ipairs(node:field("consequence")) do
@@ -263,8 +194,8 @@ local function resume_visual_charwise()
 	if f.visualmode() == "v" then
 		vim.cmd.normal("gv")
 	elseif
-		-- 22 is the unicode decimal representation of <C-V>
-		f.visualmode() == "V" or f.visualmode() == "\22"
+	-- 22 is the unicode decimal representation of <C-V>
+			f.visualmode() == "V" or f.visualmode() == "\22"
 	then
 		vim.cmd.normal("gvv")
 	else
@@ -279,14 +210,14 @@ local function get_selection_range()
 end
 
 ---Get the node that spans the range
----@param start pos
----@param end_ pos
----@return tsnode
+---@param start Pos
+---@param end_ Pos
+---@return TSNode?
 local function get_covering_node(start, end_)
 	local root = get_root()
 	local list = { start, end_ }
 	table.sort(list, pos.lt)
-	e, s = list[1], list[2]
+	local e, s = list[1], list[2]
 
 	-- Smallest node that covers the selection end to end
 	local covering_node = root:named_descendant_for_range(s[1], s[2], e[1], e[2])
@@ -304,7 +235,7 @@ local function get_larger_ancestor(node, start, end_)
 end
 
 -- Check if visual selection is covering the node, with the cursor at the end
-function is_selected_cursor_end(node, start, end_)
+local function is_selected_cursor_end(node, start, end_)
 	local sr, sc, er, ec = node:range()
 	return er == start[1] and ec == (start[2] + 1) and sr == end_[1] and sc == (end_[2] - 1)
 end
@@ -315,7 +246,7 @@ local function is_selected_cursor_start(node, start, end_)
 end
 
 ---Apply highlights
----@param node tsnode
+---@param node TSNode
 local function apply_decoration(node)
 	a.nvim_buf_clear_namespace(0, ns, 0, -1)
 
@@ -336,7 +267,6 @@ local function apply_decoration(node)
 
 	if parent then
 		local sl, sc = unpack({ parent:start() })
-		local el, ec = unpack({ parent:end_() })
 
 		a.nvim_buf_set_extmark(0, ns, sl, sc, {
 			hl_group = "TreeClimberParentStart",
@@ -345,7 +275,6 @@ local function apply_decoration(node)
 
 		for child in parent:iter_children() do
 			if child:id() ~= node:id() and child:named() then
-				local sl, sc = unpack({ child:start() })
 				local el, ec = unpack({ child:end_() })
 
 				a.nvim_buf_set_extmark(0, ns, sl, sc, {
@@ -369,6 +298,11 @@ end
 function M.select_current_node()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
+
+	if node == nil then
+		return
+	end
+
 	apply_decoration(node)
 	visual_select_node(node)
 	resume_visual_charwise()
@@ -378,13 +312,17 @@ function M.select_expand()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
-	if is_selected_cursor_start(node, start, end_) then
+	if node and is_selected_cursor_start(node, start, end_) then
 		local ancestor = get_larger_ancestor(node:parent(), start, end_)
 
 		if ancestor then
 			visit_list:push(node)
 			node = ancestor
 		end
+	end
+
+	if node == nil then
+		return
 	end
 
 	apply_decoration(node)
@@ -396,7 +334,7 @@ function M.select_top_level()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
-	while node:parent() do
+	while node and node:parent() do
 		if top_level_types[node:parent():type()] then
 			vim.pretty_print(node:type())
 			visit_list:push(node)
@@ -405,6 +343,10 @@ function M.select_top_level()
 		else
 			node = node:parent()
 		end
+	end
+
+	if node == nil then
+		return
 	end
 
 	apply_decoration(node)
@@ -426,11 +368,15 @@ function M.select_shrink()
 	end
 
 	if not next_node then
-		if node:named_child_count() > 0 then
+		if node and node:named_child_count() > 0 then
 			next_node = node:named_child(0)
 		else
 			next_node = node
 		end
+	end
+
+	if not next_node then
+		return
 	end
 
 	apply_decoration(next_node)
@@ -442,8 +388,16 @@ function M.select_forward_end()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
+	if node == nil then
+		return
+	end
+
 	if is_selected_cursor_end(node, start, end_) and node:next_sibling() then
 		node = node:next_sibling()
+	end
+
+	if node == nil then
+		return
 	end
 
 	apply_decoration(node)
@@ -455,8 +409,16 @@ function M.select_backward()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
+	if node == nil then
+		return
+	end
+
 	if is_selected_cursor_start(node, start, end_) and node:prev_named_sibling() then
 		node = node:prev_named_sibling()
+	end
+
+	if node == nil then
+		return
 	end
 
 	apply_decoration(node)
@@ -468,8 +430,12 @@ function M.select_siblings_backward()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
-	while node:prev_named_sibling() do
+	while node and node:prev_named_sibling() do
 		node = node:prev_named_sibling()
+	end
+
+	if node == nil then
+		return
 	end
 
 	apply_decoration(node)
@@ -481,8 +447,12 @@ function M.select_siblings_forward()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
-	while node:next_sibling() do
+	while node and node:next_sibling() do
 		node = node:next_sibling()
+	end
+
+	if node == nil then
+		return
 	end
 
 	apply_decoration(node)
@@ -494,8 +464,16 @@ function M.select_prev_node()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
+	if node == nil then
+		return
+	end
+
 	if node:prev_named_sibling() then
 		node = node:prev_named_sibling()
+	end
+
+	if node == nil then
+		return
 	end
 
 	apply_decoration(node)
@@ -507,8 +485,16 @@ function M.select_forward()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
+	if node == nil then
+		return
+	end
+
 	if node:next_sibling() then
 		node = node:next_sibling()
+	end
+
+	if node == nil then
+		return
 	end
 
 	apply_decoration(node)
@@ -603,8 +589,6 @@ function M.draw_boundary()
 			return
 		end
 	end
-
-	return node:sexpr()
 end
 
 local function set_normal_mode()
@@ -643,7 +627,7 @@ end
 
 -- Get the node that is currently selected, then highlight all identifiers that
 -- are not defined within the current scope.
-function M.highlight_external_definitions(opts)
+function M.highlight_external_definitions()
 	set_normal_mode()
 	resume_visual_charwise()
 	local start, end_ = get_selection_range()
@@ -661,13 +645,13 @@ function M.highlight_external_definitions(opts)
 
 	local definitions = {}
 
-	for id, node, metadata in query:iter_captures(node, 0, 0, -1) do
+	for id, child in query:iter_captures(node, 0, 0, -1) do
 		local name = query.captures[id] -- name of the capture in the query
 		-- typically useful info about the node:
 		-- local type = node:type() -- type of the captured node
 		-- local row1, col1, row2, col2 = node:range() -- range of the capture
 		-- vim.pretty_print(tsnode_get_text(node))
-		local text = tsnode_get_text(node)
+		local text = tsnode_get_text(child)
 		if name == "def" then
 			table.insert(definitions, text)
 		elseif not definitions[text] then
