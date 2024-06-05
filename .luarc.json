@@ -1,0 +1,29 @@
+{
+    "workspace.library": [
+        "/Users/dylan/.local/share/nvim/lazy/neodev.nvim/types/nightly",
+        "/nix/store/hhmcp0p0y2kjgjgpxs4ygna3d04cadsh-neovim-unwrapped-0.10.0/share/nvim/runtime/lua",
+        "/Users/dylan/.local/share/nvim/lazy/neodev.nvim/types/nightly",
+        "/nix/store/hhmcp0p0y2kjgjgpxs4ygna3d04cadsh-neovim-unwrapped-0.10.0/share/nvim/runtime/lua",
+        "/Users/dylan/.config/nvim",
+        "/Users/dylan/.local/share/nvim/lazy/lazy.nvim",
+        "/Users/dylan/.local/share/nvim/lazy/cmp-nvim-lsp",
+        "/Users/dylan/.local/share/nvim/lazy/lsp_signature.nvim",
+        "/Users/dylan/.local/share/nvim/lazy/lsp-inlayhints.nvim",
+        "/Users/dylan/.config/nvim/pack/dkendal/opt/nvim-kitty",
+        "/Users/dylan/.local/share/nvim/lazy/mason-lspconfig.nvim",
+        "/Users/dylan/.local/share/nvim/lazy/mason.nvim",
+        "/Users/dylan/.local/share/nvim/lazy/none-ls.nvim",
+        "/Users/dylan/.local/share/nvim/lazy/lsp-status.nvim",
+        "/Users/dylan/.local/share/nvim/lazy/nvim-lspconfig",
+        "/Users/dylan/.local/share/nvim/lazy/neodev.nvim",
+        "/nix/store/hhmcp0p0y2kjgjgpxs4ygna3d04cadsh-neovim-unwrapped-0.10.0/share/nvim/runtime",
+        "/nix/store/hhmcp0p0y2kjgjgpxs4ygna3d04cadsh-neovim-unwrapped-0.10.0/lib/nvim",
+        "/Users/dylan/.local/share/nvim/lazy/cmp-nvim-lsp/after",
+        "/Users/dylan/.config/nvim/after",
+        "/Users/dylan/.local/state/nvim/lazy/readme",
+        "/Users/dylan/src/dkendal/nvim-treeclimber/lua",
+        "/Users/dylan/src/dkendal/nvim-treeclimber/lua",
+        "${3rd}/luv/library",
+        "${3rd}/luassert/library"
+    ]
+}

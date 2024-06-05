@@ -1,0 +1,26 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  default:
+    - task: test
+  test:
+    silent: true
+    force: true
+    sources:
+      - 'lua/**/*.lua'
+      - 'tests/**/*.lua'
+    cmds:
+      - nvim --headless -c ":PlenaryBustedDirectory tests/ {minimal_init = 'tests/init.lua', sequential = true}" -c ":qa!"
+
+  nvim:
+    interactive: true
+    cmd: nvim -u ./tests/init.lua
+
+  install:
+    aliases: [i]
+    cmd: luarocks --tree=lua_modules install --only-deps nvim-treeclimber-dev-1.rockspec
+
+  lint:
+    cmd: luacheck --config .luacheckrc ./lua/**/*.lua

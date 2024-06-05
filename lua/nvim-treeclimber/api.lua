@@ -2,11 +2,11 @@ local ts = vim.treesitter
 local f = vim.fn
 local a = vim.api
 local logger = require("nvim-treeclimber.logger").new("Treeclimber log")
-local pos = require("nvim-treeclimber.data.pos")
-local pos_range = require("nvim-treeclimber.data.pos_range")
-local RingBuffer = require("nvim-treeclimber.data.ring_buffer")
+local Pos = require("nvim-treeclimber.pos")
+local Range = require("nvim-treeclimber.range")
+local RingBuffer = require("nvim-treeclimber.ring_buffer")
 
-local M = {}
+local api = {}
 
 local ns = a.nvim_create_namespace("nvim-treeclimber")
 local boundaries_ns = a.nvim_create_namespace("nvim-treeclimber-boundaries")
@@ -67,7 +67,7 @@ local function tsnode_get_text(node)
 	return vim.treesitter.query.get_node_text(node, 0)
 end
 
-function M.show_control_flow()
+function api.show_control_flow()
 	local node = get_node_under_cursor()
 	local prev = node
 	local p = {}
@@ -142,7 +142,7 @@ end
 ---@param name string
 ---@param lines table
 -- write lines to a temporary buffer with `name`, and open the buffer as a floating window
-function M.in_temp_win(name, lines)
+function api.in_temp_win(name, lines)
 	local bufnr = f.bufnr(name, true)
 
 	f.bufload(name)
@@ -161,12 +161,12 @@ function M.in_temp_win(name, lines)
 end
 
 local function visual_select_start(node)
-	local start = pos.to_vim({ node:start() })
+	local start = Pos.to_vim({ node:start() })
 	a.nvim_buf_set_mark(0, ">", start[1], start[2], {})
 end
 
 local function visual_select_end(node)
-	local end_ = pos.to_vim({ node:end_() })
+	local end_ = Pos.to_vim({ node:end_() })
 
 	local el = math.min(end_[1], f.line("$"))
 	local ec = math.max(end_[2] - 1, 0)
@@ -180,8 +180,8 @@ local function visual_select_node(node)
 end
 
 local function visual_select_node_end(node)
-	local start = pos.to_vim({ node:start() })
-	local end_ = pos.to_vim({ node:end_() })
+	local start = Pos.to_vim({ node:start() })
+	local end_ = Pos.to_vim({ node:end_() })
 
 	local el = math.min(end_[1], f.line("$"))
 	local ec = math.max(end_[2] - 1, 0)
@@ -203,31 +203,65 @@ local function resume_visual_charwise()
 	end
 end
 
+---@deprecated use `get_selection_range_v2`
 local function get_selection_range()
-	local start = pos.to_ts(a.nvim_win_get_cursor(0))
-	local end_ = pos.to_ts({ f.line("v"), f.col("v") })
+	local start = Pos.to_ts(a.nvim_win_get_cursor(0))
+	local end_ = Pos.to_ts({ f.line("v"), f.col("v") })
 	return start, end_
 end
 
+local function get_selection_range_v2()
+	local from = Pos.to_ts(a.nvim_win_get_cursor(0))
+	local to = Pos.to_ts({ f.line("v"), f.col("v") })
+	return Range.new(from, to)
+end
+
 ---Get the node that spans the range
----@param start Pos
----@param end_ Pos
+---@param start treeclimber.Pos
+---@param end_ treeclimber.Pos
 ---@return TSNode?
 local function get_covering_node(start, end_)
 	local root = get_root()
-	local list = { start, end_ }
-	table.sort(list, pos.lt)
-	local e, s = list[1], list[2]
+	local range = Range.new(Pos.from_list(start), Pos.from_list(end_))
+	return api.named_descendant_for_range(root, range)
+end
+
+---Get the node that spans the range
+---@param node TSNode
+---@param range treeclimber.Range
+---@return TSNode?
+function api.named_descendant_for_range(node, range)
+	range = Range.order_ascending(range)
 
 	-- Smallest node that covers the selection end to end
-	local covering_node = root:named_descendant_for_range(s[1], s[2], e[1], e[2])
-
-	return covering_node
+	return node:named_descendant_for_range(range:values())
 end
 
 -- Get a node above this one that would grow the selection
+---@param node TSNode
+---@param start treeclimber.Pos
+---@param end_ treeclimber.Pos
+---@return TSNode?
+---@deprecated use `get_larger_ancestor_v2`
 local function get_larger_ancestor(node, start, end_)
-	while node and pos_range.eq({ { node:start() }, { node:end_() } }, { start, end_ }) do
+	local range = Range.new(start, end_)
+
+	---@type TSNode?
+	local curr = node
+
+	while curr and Range.from_node(curr) == range do
+		curr = curr:parent()
+	end
+
+	return curr
+end
+
+-- Get a node above this one that would grow the selection
+---@param node TSNode?
+---@param range treeclimber.Range
+---@return TSNode?
+local function get_larger_ancestor_v2(node, range)
+	while node and Range.from_node(node) == range do
 		node = node:parent()
 	end
 
@@ -240,9 +274,19 @@ local function is_selected_cursor_end(node, start, end_)
 	return er == start[1] and ec == (start[2] + 1) and sr == end_[1] and sc == (end_[2] - 1)
 end
 
+---@deprecated use `is_selected_cursor_start_v2`
+---@param node TSNode
+---@param start treeclimber.Pos
+---@param end_ treeclimber.Pos
 local function is_selected_cursor_start(node, start, end_)
 	local sr, sc, er, ec = node:range()
 	return sr == start[1] and sc == start[2] and er == end_[1] and ec == end_[2]
+end
+
+---@param node TSNode
+---@param range treeclimber.Range
+local function is_selected_cursor_start_v2(node, range)
+	return Range.new4(node:range()) == range
 end
 
 ---Apply highlights
@@ -295,7 +339,7 @@ local function apply_decoration(node)
 	end
 end
 
-function M.select_current_node()
+function api.select_current_node()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
@@ -308,12 +352,19 @@ function M.select_current_node()
 	resume_visual_charwise()
 end
 
-function M.select_expand()
-	local start, end_ = get_selection_range()
-	local node = get_covering_node(start, end_)
+function api.select_expand()
+	local range = get_selection_range_v2()
+	local root = get_root()
+	local node = api.named_descendant_for_range(root, range)
 
-	if node and is_selected_cursor_start(node, start, end_) then
-		local ancestor = get_larger_ancestor(node:parent(), start, end_)
+	if node == nil then
+		return
+	end
+
+	if is_selected_cursor_start_v2(node, range) then
+		local parent = node:parent()
+
+		local ancestor = get_larger_ancestor_v2(parent, range)
 
 		if ancestor then
 			visit_list:push(node)
@@ -330,7 +381,16 @@ function M.select_expand()
 	resume_visual_charwise()
 end
 
-function M.select_top_level()
+---TODO move this to another module
+---@param node TSNode
+---@param selection treeclimber.Range
+---@return TSNode?
+function api.expand_node(node, selection)
+	next = api.named_descendant_for_range(node, selection)
+	return next
+end
+
+function api.select_top_level()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
@@ -354,7 +414,7 @@ function M.select_top_level()
 	resume_visual_charwise()
 end
 
-function M.select_shrink()
+function api.select_shrink()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 	local next_node = nil
@@ -384,7 +444,7 @@ function M.select_shrink()
 	resume_visual_charwise()
 end
 
-function M.select_forward_end()
+function api.select_forward_end()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
@@ -405,7 +465,7 @@ function M.select_forward_end()
 	resume_visual_charwise()
 end
 
-function M.select_backward()
+function api.select_backward()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
@@ -426,7 +486,7 @@ function M.select_backward()
 	resume_visual_charwise()
 end
 
-function M.select_siblings_backward()
+function api.select_siblings_backward()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
@@ -443,7 +503,7 @@ function M.select_siblings_backward()
 	resume_visual_charwise()
 end
 
-function M.select_siblings_forward()
+function api.select_siblings_forward()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
@@ -460,7 +520,7 @@ function M.select_siblings_forward()
 	resume_visual_charwise()
 end
 
-function M.select_prev_node()
+function api.select_prev_node()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
@@ -481,7 +541,7 @@ function M.select_prev_node()
 	resume_visual_charwise()
 end
 
-function M.select_forward()
+function api.select_forward()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
@@ -512,14 +572,14 @@ local function get_covering_nodes(start, end_)
 		return nil
 	end
 
-	if pos.eq({ parent:end_() }, end_) and pos.eq({ parent:start() }, start) then
+	if Pos.eq({ parent:end_() }, end_) and Pos.eq({ parent:start() }, start) then
 		return { parent }
 	end
 
 	local nodes = {}
 
 	for child in parent:iter_children() do
-		if child:named() and pos.gte({ child:start() }, start) and pos.lte({ child:end_() }, end_) then
+		if child:named() and Pos.gte({ child:start() }, start) and Pos.lte({ child:end_() }, end_) then
 			table.insert(nodes, child)
 		end
 	end
@@ -527,7 +587,7 @@ local function get_covering_nodes(start, end_)
 	return nodes
 end
 
-function M.select_grow_forward()
+function api.select_grow_forward()
 	local start, end_ = get_selection_range()
 	local nodes = get_covering_nodes(start, end_)
 
@@ -541,7 +601,7 @@ function M.select_grow_forward()
 	end
 end
 
-function M.select_grow_backward()
+function api.select_grow_backward()
 	local start, end_ = get_selection_range()
 	local nodes = get_covering_nodes(start, end_)
 
@@ -555,10 +615,10 @@ function M.select_grow_backward()
 	end
 end
 
-function M.draw_boundary()
+function api.draw_boundary()
 	a.nvim_buf_clear_namespace(0, boundaries_ns, 0, -1)
 
-	local pos_ = pos.to_ts(a.nvim_win_get_cursor(0))
+	local pos_ = Pos.to_ts(a.nvim_win_get_cursor(0))
 	local node = ts.get_node({ pos = pos_ })
 	-- grow selection until it matches one of the types
 
@@ -598,7 +658,7 @@ end
 local diff_ring = RingBuffer.new(2)
 
 --- Diff two selections using difft in a new window.
-function M.diff_this(opts)
+function api.diff_this(opts)
 	local text = a.nvim_buf_get_text(0, opts.line1 - 1, 0, opts.line2 - 1, -1, {})
 	diff_ring:put(text)
 	if diff_ring.index == 1 then
@@ -627,7 +687,7 @@ end
 
 -- Get the node that is currently selected, then highlight all identifiers that
 -- are not defined within the current scope.
-function M.highlight_external_definitions()
+function api.highlight_external_definitions()
 	set_normal_mode()
 	resume_visual_charwise()
 	local start, end_ = get_selection_range()
@@ -661,4 +721,4 @@ function M.highlight_external_definitions()
 	end
 end
 
-return M
+return api
