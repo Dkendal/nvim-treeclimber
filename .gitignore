@@ -1,6 +1,7 @@
-.task
-.nvimrc.lua
+/.task
+/.nvimrc.lua
+/.tests
 /luarocks
-/lua
 /lua_modules
 /.luarocks
+

@@ -1,0 +1,88 @@
+local pos = require("nvim-treeclimber.pos")
+
+---@class treeclimber.Range
+---@field from treeclimber.Pos
+---@field to treeclimber.Pos
+local Range = {}
+
+---@param to treeclimber.Pos
+---@param from treeclimber.Pos
+---@return treeclimber.Range
+function Range.new(from, to)
+	local range = {
+		from = from,
+		to = to,
+		values = Range.values,
+	}
+
+	setmetatable(range, Range)
+
+	return range
+end
+
+function Range.new4(row1, col1, row2, col2)
+	return Range.new(pos.new(row1, col1), pos.new(row2, col2))
+end
+
+---@param a treeclimber.Range
+---@param b treeclimber.Range
+---@return boolean
+function Range.__eq(a, b)
+	return Range.eq(a, b)
+end
+
+---@param a treeclimber.Range
+---@param b treeclimber.Range
+---@return boolean
+function Range.eq(a, b)
+	return pos.eq(a.from, b.from) and pos.eq(a.to, b.to)
+end
+
+-- A covers B
+---@param a treeclimber.Range
+---@param b treeclimber.Range
+---@return boolean
+function Range.covers(a, b)
+	return pos.lte(a[1], b[1]) and pos.gte(a[2], b[2])
+end
+
+---@param range treeclimber.Range
+---@return treeclimber.Range
+function Range.order_ascending(range)
+	if range.from > range.to then
+		return Range.new(range.to, range.from)
+	end
+
+	return range
+end
+
+---@param range treeclimber.Range
+---@return treeclimber.Range
+function Range.order_descending(range)
+	if range.from < range.to then
+		return Range.new(range.to, range.from)
+	end
+
+	return range
+end
+
+---@return number, number, number, number
+function Range:values()
+	local a, b = self.from:values()
+	local c, d = self.to:values()
+	return a, b, c, d
+end
+
+---@param range treeclimber.Range
+---@return treeclimber.Pos, treeclimber.Pos
+function Range.positions(range)
+	return range.from, range.to
+end
+
+---@param node TSNode
+---@return treeclimber.Range
+function Range.from_node(node)
+	return Range.new4(node:range())
+end
+
+return Range
