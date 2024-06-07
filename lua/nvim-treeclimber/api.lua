@@ -4,9 +4,13 @@ local a = vim.api
 local logger = require("nvim-treeclimber.logger").new("Treeclimber log")
 local Pos = require("nvim-treeclimber.pos")
 local Range = require("nvim-treeclimber.range")
+local Stack = require("nvim-treeclimber.stack")
 local RingBuffer = require("nvim-treeclimber.ring_buffer")
+local argcheck = require("nvim-treeclimber.typecheck").argcheck
 
 local api = {}
+api.node = {}
+api.buf = {}
 
 local ns = a.nvim_create_namespace("nvim-treeclimber")
 local boundaries_ns = a.nvim_create_namespace("nvim-treeclimber-boundaries")
@@ -19,22 +23,36 @@ else
 	vim.g.treeclimber_loaded = true
 end
 
-local visit_list = {}
+--- @alias treeclimber.History Range4[]
+--- @type treeclimber.History
+local plug_history = {}
 
-function visit_list:push(node)
-	table.insert(visit_list, { { node:start() }, { node:end_() } })
+--- @param t table
+local function tbl_clear(t)
+	local count = #t
+	for i = 0, count do
+		t[i] = nil
+	end
 end
 
-function visit_list:pop()
-	return table.remove(visit_list)
+--- @param node TSNode
+local function push_history(node)
+	local top = Stack.peek(plug_history)
+	local new_value = { node:range() }
+
+	if vim.deep_equal(top, new_value) then
+		return
+	end
+
+	table.insert(plug_history, new_value)
 end
 
 local top_level_types = {
 	["function_declaration"] = true,
 }
 
----@param bufnr number | nil
----@param lang string | nil
+---@param bufnr integer?
+---@param lang string?
 ---@return vim.treesitter.LanguageTree
 local function get_parser(bufnr, lang)
 	return vim.treesitter.get_parser(bufnr, lang)
@@ -42,33 +60,34 @@ end
 
 ---Returns the root node of the tree from the current parser
 ---@return TSNode
-local function get_root()
+function api.buf.get_root()
 	local parser = get_parser()
 	local tree = parser:parse()[1]
 	return tree:root()
 end
 
 ---@return number, number
-local function get_cursor()
+function api.buf.get_cursor()
 	local row, col = unpack(vim.api.nvim_win_get_cursor(0))
 	row = row - 1
 	return row, col
 end
 
 ---@return TSNode?
-local function get_node_under_cursor()
-	local root = get_root()
-	local row, col = get_cursor()
+function api.buf.get_node_under_cursor()
+	local root = api.buf.get_root()
+	local row, col = api.buf.get_cursor()
 	return root:descendant_for_range(row, col, row, col)
 end
 
 ---@param node TSNode
-local function tsnode_get_text(node)
+---@return string
+function api.node.get_text(node)
 	return vim.treesitter.query.get_node_text(node, 0)
 end
 
 function api.show_control_flow()
-	local node = get_node_under_cursor()
+	local node = api.buf.get_node_under_cursor()
 	local prev = node
 	local p = {}
 
@@ -107,17 +126,17 @@ function api.show_control_flow()
 
 		if type == "ternary_expression" or type == "if_statement" then
 			for _, n in ipairs(node:field("condition")) do
-				push({ start = node:start(), msg = string.format("if %s", tsnode_get_text(n)) })
+				push({ start = node:start(), msg = string.format("if %s", api.node.get_text(n)) })
 			end
 		elseif type == "function_declaration" then
 			push({
 				start = node:start(),
-				msg = string.format("function %s(...)", tsnode_get_text(node:field("name")[1])),
+				msg = string.format("function %s(...)", api.node.get_text(node:field("name")[1])),
 			})
 		elseif type == "variable_declarator" and node:field("value")[1]:type() == "arrow_function" then
 			push({
 				start = node:start(),
-				msg = string.format("%s = (...) =>", tsnode_get_text(node:field("name")[1])),
+				msg = string.format("%s = (...) =>", api.node.get_text(node:field("name")[1])),
 			})
 		end
 		node = node:parent()
@@ -203,17 +222,33 @@ local function resume_visual_charwise()
 	end
 end
 
----@deprecated use `get_selection_range_v2`
+---@deprecated use `api.doc.get_selection_range`
 local function get_selection_range()
 	local start = Pos.to_ts(a.nvim_win_get_cursor(0))
 	local end_ = Pos.to_ts({ f.line("v"), f.col("v") })
 	return start, end_
 end
 
-local function get_selection_range_v2()
+---@return treeclimber.Range
+function api.buf.get_selection_range()
 	local from = Pos.to_ts(a.nvim_win_get_cursor(0))
 	local to = Pos.to_ts({ f.line("v"), f.col("v") })
 	return Range.new(from, to)
+end
+
+---Get the node that spans the range
+---@param range treeclimber.Range
+---@return TSNode?
+function api.buf.get_covering_node(range)
+	local root = api.buf.get_root()
+	return api.node.largest_named_descendant_for_range(root, range:to_list())
+end
+
+---Get the node that is currently selected, either in visual or normal mode
+---@return TSNode?
+function api.buf.get_selected_node()
+	local range = api.buf.get_selection_range()
+	return api.buf.get_covering_node(range)
 end
 
 ---Get the node that spans the range
@@ -221,51 +256,57 @@ end
 ---@param end_ treeclimber.Pos
 ---@return TSNode?
 local function get_covering_node(start, end_)
-	local root = get_root()
+	local root = api.buf.get_root()
 	local range = Range.new(Pos.from_list(start), Pos.from_list(end_))
-	return api.named_descendant_for_range(root, range)
+	return api.node.largest_named_descendant_for_range(root, range:to_list())
 end
 
 ---Get the node that spans the range
 ---@param node TSNode
 ---@param range treeclimber.Range
 ---@return TSNode?
-function api.named_descendant_for_range(node, range)
-	range = Range.order_ascending(range)
-
-	-- Smallest node that covers the selection end to end
+function api.node.named_descendant_for_range(node, range)
 	return node:named_descendant_for_range(range:values())
+end
+
+---Get the largest node that spans the range
+---@param node TSNode
+---@param range Range4
+---@return TSNode?
+function api.node.largest_named_descendant_for_range(node, range)
+	local prev = node:named_descendant_for_range(unpack(range))
+
+	if prev == nil then
+		return
+	end
+
+	---@type TSNode?
+	local next = prev
+
+	repeat
+		assert(next, "Expected TSNode")
+		prev = next
+		next = prev:parent()
+	until not next or not vim.deep_equal({ next:range() }, { prev:range() })
+
+	return prev
 end
 
 -- Get a node above this one that would grow the selection
 ---@param node TSNode
----@param start treeclimber.Pos
----@param end_ treeclimber.Pos
----@return TSNode?
----@deprecated use `get_larger_ancestor_v2`
-local function get_larger_ancestor(node, start, end_)
-	local range = Range.new(start, end_)
-
-	---@type TSNode?
-	local curr = node
-
-	while curr and Range.from_node(curr) == range do
-		curr = curr:parent()
-	end
-
-	return curr
-end
-
--- Get a node above this one that would grow the selection
----@param node TSNode?
 ---@param range treeclimber.Range
----@return TSNode?
-local function get_larger_ancestor_v2(node, range)
-	while node and Range.from_node(node) == range do
-		node = node:parent()
+---@return TSNode
+function api.get_larger_ancestor(node, range)
+	---@type TSNode?
+	local acc = node
+	local prev = node
+
+	while acc and api.node.has_range(acc, range) do
+		prev = acc
+		acc = acc:parent()
 	end
 
-	return node
+	return acc or prev
 end
 
 -- Check if visual selection is covering the node, with the cursor at the end
@@ -283,15 +324,11 @@ local function is_selected_cursor_start(node, start, end_)
 	return sr == start[1] and sc == start[2] and er == end_[1] and ec == end_[2]
 end
 
----@param node TSNode
----@param range treeclimber.Range
-local function is_selected_cursor_start_v2(node, range)
-	return Range.new4(node:range()) == range
-end
-
 ---Apply highlights
 ---@param node TSNode
 local function apply_decoration(node)
+	argcheck("treeclimber.api.apply_decoration", 1, "userdata", node)
+
 	a.nvim_buf_clear_namespace(0, ns, 0, -1)
 
 	local function cb()
@@ -353,41 +390,41 @@ function api.select_current_node()
 end
 
 function api.select_expand()
-	local range = get_selection_range_v2()
-	local root = get_root()
-	local node = api.named_descendant_for_range(root, range)
+	local node = api.buf.get_selected_node()
 
-	if node == nil then
+	if not node then
 		return
 	end
 
-	if is_selected_cursor_start_v2(node, range) then
-		local parent = node:parent()
+	node = api.node.grow(node)
 
-		local ancestor = get_larger_ancestor_v2(parent, range)
-
-		if ancestor then
-			visit_list:push(node)
-			node = ancestor
-		end
-	end
-
-	if node == nil then
+	if not node then
 		return
 	end
+
+	push_history(node)
 
 	apply_decoration(node)
 	visual_select_node(node)
 	resume_visual_charwise()
 end
 
----TODO move this to another module
----@param node TSNode
----@param selection treeclimber.Range
----@return TSNode?
-function api.expand_node(node, selection)
-	next = api.named_descendant_for_range(node, selection)
-	return next
+function api.select_shrink()
+	local range = api.buf.get_selection_range()
+	local root = api.buf.get_root()
+	local node = api.node.largest_named_descendant_for_range(root, range:to_list())
+	--- @type TSNode?
+	local next_node
+
+	if not node then
+		return
+	end
+
+	next_node = api.node.shrink(node, plug_history)
+
+	apply_decoration(next_node)
+	visual_select_node(next_node)
+	resume_visual_charwise()
 end
 
 function api.select_top_level()
@@ -396,8 +433,7 @@ function api.select_top_level()
 
 	while node and node:parent() do
 		if top_level_types[node:parent():type()] then
-			vim.pretty_print(node:type())
-			visit_list:push(node)
+			push_history(node)
 			node = node:parent()
 			break
 		else
@@ -411,36 +447,6 @@ function api.select_top_level()
 
 	apply_decoration(node)
 	visual_select_node(node)
-	resume_visual_charwise()
-end
-
-function api.select_shrink()
-	local start, end_ = get_selection_range()
-	local node = get_covering_node(start, end_)
-	local next_node = nil
-
-	if #visit_list > 0 then
-		local last = visit_list:pop()
-		local last_node = get_covering_node(last[1], last[2])
-		if ts.is_ancestor(node, last_node) then
-			next_node = last_node
-		end
-	end
-
-	if not next_node then
-		if node and node:named_child_count() > 0 then
-			next_node = node:named_child(0)
-		else
-			next_node = node
-		end
-	end
-
-	if not next_node then
-		return
-	end
-
-	apply_decoration(next_node)
-	visual_select_node(next_node)
 	resume_visual_charwise()
 end
 
@@ -615,6 +621,79 @@ function api.select_grow_backward()
 	end
 end
 
+---@param node TSNode
+---@param range treeclimber.Range
+function api.node.has_range(node, range)
+	return Range.new4(node:range()) == range
+end
+
+---@param node TSNode
+---@return TSNode?
+function api.node.grow(node)
+	local next = node
+	local range = Range.from_node(node)
+
+	if not next then
+		return
+	end
+
+	if not api.node.has_range(next, range) then
+		return next
+	end
+
+	local ancestor = api.get_larger_ancestor(next, range)
+
+	return ancestor or next
+end
+
+---@param node TSNode
+---@param history treeclimber.History
+---@return TSNode
+function api.node.shrink(node, history)
+	argcheck("treeclimber.api.node.shrink", 1, "userdata", node)
+	argcheck("treeclimber.api.node.shrink", 2, "table", history)
+
+	---@type TSNode
+	local prev = node
+	---@type TSNode?
+	local next = node
+
+	if #history > 0 then
+		--- @type Range4
+		local descendant_range
+
+		repeat
+			descendant_range = Stack.pop(history)
+		until #history == 0 or not vim.deep_equal(descendant_range, { node:range() })
+		-- Ignore the current node
+
+		-- Only return a previously visited node if it's a descendant of the current node
+		if descendant_range and vim.treesitter.node_contains(node, descendant_range) then
+			next = api.node.largest_named_descendant_for_range(node, descendant_range)
+			-- This should always be true
+			assert(next, "Expected a node")
+			-- Make sure to push this node back onto the stack
+			push_history(next)
+			return next
+		end
+	end
+
+	-- Clear history, as the node is not a descendant of the current node
+	tbl_clear(history)
+
+	local range = Range.from_node(node)
+
+	while next and api.node.has_range(next, range) and next:named_child_count() > 0 do
+		prev = next
+		next = next:named_child(0)
+		if not next then
+			break
+		end
+	end
+
+	return next or prev
+end
+
 function api.draw_boundary()
 	a.nvim_buf_clear_namespace(0, boundaries_ns, 0, -1)
 
@@ -634,14 +713,6 @@ function api.draw_boundary()
 			strict = false,
 		})
 		i = i + 1
-
-		-- row, col = node:end_()
-		--
-		-- a.nvim_buf_set_extmark(0, boundaries_ns, row, col - 1, {
-		-- 	hl_group = "SignColumn",
-		-- 	end_col = col + 1,
-		-- 	strict = false,
-		-- })
 
 		node = node:parent()
 
@@ -693,7 +764,7 @@ function api.highlight_external_definitions()
 	local start, end_ = get_selection_range()
 	local node = get_covering_node(start, end_)
 
-	local query = ts.parse_query(
+	local query = ts.query.parse(
 		vim.o.filetype,
 		[[
 		(lexical_declaration (variable_declarator name: ((identifier) @def)))
@@ -705,18 +776,20 @@ function api.highlight_external_definitions()
 
 	local definitions = {}
 
+	assert(node, "No node found")
+
 	for id, child in query:iter_captures(node, 0, 0, -1) do
 		local name = query.captures[id] -- name of the capture in the query
 		-- typically useful info about the node:
 		-- local type = node:type() -- type of the captured node
 		-- local row1, col1, row2, col2 = node:range() -- range of the capture
 		-- vim.pretty_print(tsnode_get_text(node))
-		local text = tsnode_get_text(child)
+		local text = api.node.get_text(child)
 		if name == "def" then
 			table.insert(definitions, text)
 		elseif not definitions[text] then
 			-- TODO: drill into a member expression to get the identifier
-			vim.pretty_print(text)
+			vim.pretty_print("WARN " .. text)
 		end
 	end
 end

@@ -1,11 +1,22 @@
-local stack = {}
+--- @generic T
+local Stack = {}
 
-function stack.push(item)
-	table.insert(stack, item)
+---@param self `T`[]
+---@param item `T` # The item to push onto the stack
+function Stack:push(item)
+	table.insert(self, item)
 end
 
-function stack.pop()
-	return table.remove(stack)
+---@param self `T`[]
+---@return `T` # The item popped from the stack
+function Stack:pop()
+	return table.remove(self)
 end
 
-return stack
+---@param self `T`[]
+---@return `T` # The item popped from the stack
+function Stack:peek()
+	return self[#self]
+end
+
+return Stack

@@ -1,4 +1,5 @@
 {
+    "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
     "workspace.library": [
         "/Users/dylan/.local/share/nvim/lazy/neodev.nvim/types/nightly",
         "/nix/store/hhmcp0p0y2kjgjgpxs4ygna3d04cadsh-neovim-unwrapped-0.10.0/share/nvim/runtime/lua",
@@ -25,5 +26,22 @@
         "/Users/dylan/src/dkendal/nvim-treeclimber/lua",
         "${3rd}/luv/library",
         "${3rd}/luassert/library"
-    ]
+    ],
+    "diagnostics.groupSeverity": {
+        "ambiguity": "Error",
+        "await": "Error",
+        "codestyle": "Error",
+        "duplicate": "Error",
+        "global": "Error",
+        "luadoc": "Error",
+        "redefined": "Error",
+        "strict": "Error",
+        "strong": "Error",
+        "type-check": "Error",
+        "unbalanced": "Error",
+        "unused": "Error"
+    },
+    "diagnostics.severity": {
+        "redefined-local": "Warning!
+    }
 }

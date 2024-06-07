@@ -21,6 +21,10 @@ function Pos.from_list(list)
 	return Pos.new(list[1], list[2])
 end
 
+function Pos:__tostring()
+	return string.format("(%d, %d)", self[1], self[2])
+end
+
 function Pos.__lt(a, b)
 	return Pos.lt(a, b)
 end

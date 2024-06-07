@@ -12,12 +12,15 @@ function Range.new(from, to)
 	local range = {
 		from = from,
 		to = to,
-		values = Range.values,
 	}
 
 	setmetatable(range, Range)
 
 	return range
+end
+
+function Range.__index(_, key)
+	return Range[key]
 end
 
 function Range.new4(row1, col1, row2, col2)
@@ -29,6 +32,10 @@ end
 ---@return boolean
 function Range.__eq(a, b)
 	return Range.eq(a, b)
+end
+
+function Range:__tostring()
+	return string.format("(%d, %d)", self.from, self.to)
 end
 
 ---@param a treeclimber.Range
@@ -71,6 +78,10 @@ function Range:values()
 	local a, b = self.from:values()
 	local c, d = self.to:values()
 	return a, b, c, d
+end
+
+function Range:to_list()
+	return { self.from:row(), self.from:col(), self.to:row(), self.to:col() }
 end
 
 ---@param range treeclimber.Range

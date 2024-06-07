@@ -1,0 +1,71 @@
+---
+globals:
+  vim.uv:
+    any: true
+
+  vim.o:
+    any: true
+
+  vim.opt:
+    any: true
+
+  vim.wo:
+    any: true
+
+  vim.bo:
+    any: true
+
+  vim.g:
+    any: true
+
+  vim.cmd:
+    any: true
+
+  vim.fn:
+    any: true
+
+  vim.api:
+    any: true
+
+  vim.print:
+    args:
+      - type: string
+
+  vim.pretty_print:
+    args:
+      - type: string
+
+  vim.treesitter:
+    any: true
+
+  vim.defer_fn:
+    args:
+      - type: function
+      - type: number
+
+  vim.split:
+    args:
+      - type: string
+      - type: string
+      - type: table
+
+  vim.tbl_isempty:
+    args:
+      - type: table
+
+  vim.tbl_flatten:
+    args:
+      - type: table
+
+  vim.tbl_map:
+    args:
+      - type: function
+      - type: table
+
+  vim.keymap.set:
+    any: true
+
+  vim.deep_equal:
+    args:
+      - type: any
+      - type: any

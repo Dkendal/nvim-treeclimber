@@ -33,10 +33,10 @@ function M.setup()
 
 	vim.o.swapfile = false
 	vim.bo.swapfile = false
-	vim.env.XDG_CONFIG_HOME = M.root(".tests/config")
-	vim.env.XDG_DATA_HOME = M.root(".tests/data")
-	vim.env.XDG_STATE_HOME = M.root(".tests/state")
-	vim.env.XDG_CACHE_HOME = M.root(".tests/cache")
+	-- vim.env.XDG_CONFIG_HOME = M.root(".tests/config")
+	-- vim.env.XDG_DATA_HOME = M.root(".tests/data")
+	-- vim.env.XDG_STATE_HOME = M.root(".tests/state")
+	-- vim.env.XDG_CACHE_HOME = M.root(".tests/cache")
 
 	-- TODO: figure out how to include parsers
 	require("nvim-treesitter.configs").setup({
