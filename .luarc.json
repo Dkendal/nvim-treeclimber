@@ -1,47 +1,55 @@
 {
     "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
-    "workspace.library": [
-        "/Users/dylan/.local/share/nvim/lazy/neodev.nvim/types/nightly",
-        "/nix/store/hhmcp0p0y2kjgjgpxs4ygna3d04cadsh-neovim-unwrapped-0.10.0/share/nvim/runtime/lua",
-        "/Users/dylan/.local/share/nvim/lazy/neodev.nvim/types/nightly",
-        "/nix/store/hhmcp0p0y2kjgjgpxs4ygna3d04cadsh-neovim-unwrapped-0.10.0/share/nvim/runtime/lua",
-        "/Users/dylan/.config/nvim",
-        "/Users/dylan/.local/share/nvim/lazy/lazy.nvim",
-        "/Users/dylan/.local/share/nvim/lazy/cmp-nvim-lsp",
-        "/Users/dylan/.local/share/nvim/lazy/lsp_signature.nvim",
-        "/Users/dylan/.local/share/nvim/lazy/lsp-inlayhints.nvim",
-        "/Users/dylan/.config/nvim/pack/dkendal/opt/nvim-kitty",
-        "/Users/dylan/.local/share/nvim/lazy/mason-lspconfig.nvim",
-        "/Users/dylan/.local/share/nvim/lazy/mason.nvim",
-        "/Users/dylan/.local/share/nvim/lazy/none-ls.nvim",
-        "/Users/dylan/.local/share/nvim/lazy/lsp-status.nvim",
-        "/Users/dylan/.local/share/nvim/lazy/nvim-lspconfig",
-        "/Users/dylan/.local/share/nvim/lazy/neodev.nvim",
-        "/nix/store/hhmcp0p0y2kjgjgpxs4ygna3d04cadsh-neovim-unwrapped-0.10.0/share/nvim/runtime",
-        "/nix/store/hhmcp0p0y2kjgjgpxs4ygna3d04cadsh-neovim-unwrapped-0.10.0/lib/nvim",
-        "/Users/dylan/.local/share/nvim/lazy/cmp-nvim-lsp/after",
-        "/Users/dylan/.config/nvim/after",
-        "/Users/dylan/.local/state/nvim/lazy/readme",
-        "/Users/dylan/src/dkendal/nvim-treeclimber/lua",
-        "/Users/dylan/src/dkendal/nvim-treeclimber/lua",
-        "${3rd}/luv/library",
-        "${3rd}/luassert/library"
-    ],
-    "diagnostics.groupSeverity": {
-        "ambiguity": "Error",
-        "await": "Error",
-        "codestyle": "Error",
-        "duplicate": "Error",
-        "global": "Error",
-        "luadoc": "Error",
-        "redefined": "Error",
-        "strict": "Error",
-        "strong": "Error",
-        "type-check": "Error",
-        "unbalanced": "Error",
-        "unused": "Error"
+    "runtime": {
+        "version": "LuaJIT",
+        "path": [
+            "?.lua",
+            "init/?.lua"
+        ],
+        "pathStrict": true
     },
-    "diagnostics.severity": {
-        "redefined-local": "Warning!
-    }
+    "workspace": {
+        "ignoreDir": [
+            ".git",
+            ".task"
+        ],
+        "library": [
+            "./lua",
+            "$VIMRUNTIME/lua",
+            "${3rd}/luassert/library",
+            "${3rd}/busted/library",
+            "${3rd}/luv/library",
+            "./.tests/xdg/local/share/nvim/site/pack/testing/start/nvim-treesitter/"
+        ]
+    },
+    "diagnostics": {
+        "groupSeverity": {
+            "ambiguity": "Error",
+            "await": "Error",
+            "codestyle": "Error",
+            "duplicate": "Error",
+            "global": "Error",
+            "luadoc": "Error",
+            "redefined": "Error",
+            "strict": "Error",
+            "strong": "Error",
+            "type-check": "Error",
+            "unbalanced": "Error",
+            "unused": "Error"
+        },
+        "severity": {
+            "redefined-local": "Warning!"
+        },
+        "unusedLocalExclude": [
+            "_*"
+        ]
+    },
+    "type": {
+        "castNumberToInteger": false,
+        "weakNilCheck": false,
+        "inferParamType": false,
+        "weakUnionCheck": false
+    },
+    "hint.enable": true,
+    "semantic.variable": true
 }

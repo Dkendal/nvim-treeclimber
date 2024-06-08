@@ -7,3 +7,5 @@
 
 .envrc
 /lua
+cover
+luacov.*

@@ -1,0 +1,11 @@
+return {
+  _all = {
+    lua = "./tests/lua.sh",
+    helper = "./tests/test_helper.lua",
+    verbose = true,
+    coverage = true,
+  },
+  default = {
+    ROOT = { "./tests" },
+  },
+}

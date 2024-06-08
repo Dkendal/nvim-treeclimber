@@ -1,40 +1,34 @@
 # https://taskfile.dev
 
-version: '3'
+version: "3"
 
 tasks:
   default:
     - task: test
+
   test:
     silent: true
-    force: true
     sources:
-      - 'lua/**/*.lua'
-      - 'tests/**/*.lua'
-    cmds:
-      - nvim --headless -c ":PlenaryBustedDirectory tests/ {minimal_init = 'tests/init.lua', sequential = true}" -c ":qa!"
-
-  test.file:
-    silent: true
-    force: true
-    sources:
-      - 'lua/**/*.lua'
-      - 'tests/**/*.lua'
-    cmds:
-      - nvim --headless -c ":PlenaryBustedFile {{.CLI_ARGS}}" -c ":qa!"
+      - "lua/**/*.lua"
+      - "tests/**/*.lua"
+    cmd: luarocks test {{.CLI_ARGS}}
 
   nvim:
     interactive: true
+    env:
+      XDG_CONFIG_HOME: '.tests/xdg/config/'
+      XDG_STATE_HOME: '.tests/xdg/local/state/'
+      XDG_DATA_HOME: '.tests/xdg/local/share/'
+
     cmd: nvim -u ./tests/init.lua
 
   install:
     aliases: [i]
-    cmd: luarocks --tree=lua_modules install --only-deps nvim-treeclimber-dev-1.rockspec
+    cmd: luarocks install --force --pin --deps-mode=one --tree=lua_modules --only-deps nvim-treeclimber-dev-1.rockspec
+
+  install:test:
+    aliases: [it]
+    cmd: luarocks --tree=lua_modules test --prepare ./nvim-treeclimber-dev-1.rockspec
 
   lint:
     cmd: selene .
-
-  vendor:
-    cmds:
-      - task: install
-      - cp -R ./lua_modules/share/lua/5.1/* ./lua/

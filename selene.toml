@@ -1,3 +1,3 @@
-std = "lua51+plenary+vim"
+std = "lua51+vim"
 
-exclude = [".tests/*", "lua/nvim-treeclimber/vivid/*"]
+exclude = [".tests/*", "lua/nvim-treeclimber/vivid/*", "3rd/*"]
