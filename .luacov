@@ -1,0 +1,16 @@
+return {
+  runreport = true,
+  statsfile = "luacov.stats.out",
+  include = {
+    "^lua%/.+$",
+  },
+  reporter = "multiple",
+  reportfile = "cover/report.out",
+  multiple = {
+    reporters = { "default", "multiple.html" },
+    html = {
+      reportfile = "cover/report/index.html",
+    },
+  },
+}
+-- vim: ft=lua

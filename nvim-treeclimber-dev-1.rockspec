@@ -1,3 +1,4 @@
+rockspec_format = "3.0"
 package = "nvim-treeclimber"
 version = "dev-1"
 source = {
@@ -12,8 +13,20 @@ description = {
    homepage = "https://github.com/dkendal/nvim-treeclimber",
    license = "MIT",
 }
-dependencies = {
+test_dependencies = {
    "lua == 5.1",
+   "busted ~> 2.2.0",
+   "typecheck ~> 3.0",
+   "luassert ~> 1.9.0",
+   "luacov ~> 0.15.0",
+   "luacov-multiple ~> 0.6",
+}
+test = {
+   command = "busted",
+   flags = {
+      "--shuffle",
+      "--coverage"
+   },
 }
 build = {
    type = "builtin",

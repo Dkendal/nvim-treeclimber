@@ -7,3 +7,6 @@
 [submodule "3rd/luv"]
 	path = 3rd/luv
 	url = https://github.com/LuaCATS/luv.git
+[submodule ".tests/xdg/local/share/nvim/site/pack/testing/start/nvim-treesitter"]
+	path = .tests/xdg/local/share/nvim/site/pack/testing/start/nvim-treesitter
+	url = https://github.com/nvim-treesitter/nvim-treesitter

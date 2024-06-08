@@ -5,3 +5,5 @@
 /lua_modules
 /.luarocks
 
+.envrc
+/lua
