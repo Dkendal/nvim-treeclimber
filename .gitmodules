@@ -1,0 +1,9 @@
+[submodule "3rd/busted"]
+	path = 3rd/busted
+	url = https://github.com/LuaCATS/busted.git
+[submodule "3rd/luassert"]
+	path = 3rd/luassert
+	url = https://github.com/LuaCATS/luassert.git
+[submodule "3rd/luv"]
+	path = 3rd/luv
+	url = https://github.com/LuaCATS/luv.git
