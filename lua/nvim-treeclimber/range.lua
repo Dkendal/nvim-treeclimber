@@ -1,4 +1,4 @@
-local pos = require("nvim-treeclimber.pos")
+local Pos = require("nvim-treeclimber.pos")
 
 ---@class treeclimber.Range
 ---@field from treeclimber.Pos
@@ -24,7 +24,7 @@ function Range.__index(_, key)
 end
 
 function Range.new4(row1, col1, row2, col2)
-	return Range.new(pos.new(row1, col1), pos.new(row2, col2))
+	return Range.new(Pos:new(row1, col1), Pos:new(row2, col2))
 end
 
 ---@param a treeclimber.Range
@@ -42,7 +42,7 @@ end
 ---@param b treeclimber.Range
 ---@return boolean
 function Range.eq(a, b)
-	return pos.eq(a.from, b.from) and pos.eq(a.to, b.to)
+	return Pos.eq(a.from, b.from) and Pos.eq(a.to, b.to)
 end
 
 -- A covers B
@@ -50,7 +50,7 @@ end
 ---@param b treeclimber.Range
 ---@return boolean
 function Range.covers(a, b)
-	return pos.lte(a[1], b[1]) and pos.gte(a[2], b[2])
+	return Pos.lte(a[1], b[1]) and Pos.gte(a[2], b[2])
 end
 
 ---@param range treeclimber.Range
@@ -73,15 +73,16 @@ function Range.order_descending(range)
 	return range
 end
 
----@return number, number, number, number
+---@return integer, integer, integer, integer
 function Range:values()
 	local a, b = self.from:values()
 	local c, d = self.to:values()
 	return a, b, c, d
 end
 
+---@return Range4
 function Range:to_list()
-	return { self.from:row(), self.from:col(), self.to:row(), self.to:col() }
+	return { self.from.row, self.from.col, self.to.row, self.to.col }
 end
 
 ---@param range treeclimber.Range

@@ -1,5 +1,3 @@
-local argcheck = require("typecheck").argcheck
-
 local assert = require("luassert")
 local api = require("nvim-treeclimber.api")
 local Range = require("nvim-treeclimber.range")
@@ -62,17 +60,17 @@ describe("api.node.shrink/2", function()
     local source = [[local a = 1]]
     local actual = parse(source):root()
 
-    actual = api.node.shrink(actual, api.History.new({}))
+    actual = api.node.shrink(actual, {})
     assert(actual)
 
     assert.are_same({ 0, 6, 0, 11 }, { actual:range() })
 
-    actual = api.node.shrink(actual)
+    actual = api.node.shrink(actual, {})
     assert(actual)
     assert.are_same({ 0, 6, 0, 7 }, { actual:range() })
 
     -- Can't shrink further
-    actual = api.node.shrink(actual)
+    actual = api.node.shrink(actual, {})
     assert(actual)
     assert.are_same({ 0, 6, 0, 7 }, { actual:range() })
   end)

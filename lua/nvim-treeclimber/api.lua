@@ -66,7 +66,7 @@ function api.buf.get_root()
 	return tree:root()
 end
 
----@return number, number
+---@return integer, integer
 function api.buf.get_cursor()
 	local row, col = unpack(vim.api.nvim_win_get_cursor(0))
 	row = row - 1
@@ -179,16 +179,17 @@ function api.in_temp_win(name, lines)
 	end)
 end
 
+--- @param node TSNode
 local function visual_select_start(node)
-	local start = Pos.to_vim({ node:start() })
-	a.nvim_buf_set_mark(0, ">", start[1], start[2], {})
+	local start = Pos:new(node:start()):to_vim()
+	a.nvim_buf_set_mark(0, ">", start.row, start.col, {})
 end
 
 local function visual_select_end(node)
-	local end_ = Pos.to_vim({ node:end_() })
+	local end_ = Pos:new(node:end_()):to_vim()
 
-	local el = math.min(end_[1], f.line("$"))
-	local ec = math.max(end_[2] - 1, 0)
+	local el = math.min(end_.row, f.line("$"))
+	local ec = math.max(end_.col - 1, 0)
 
 	a.nvim_buf_set_mark(0, "<", el, ec, {})
 end
@@ -199,13 +200,13 @@ local function visual_select_node(node)
 end
 
 local function visual_select_node_end(node)
-	local start = Pos.to_vim({ node:start() })
-	local end_ = Pos.to_vim({ node:end_() })
+	local start = Pos:new(node:start()):to_vim()
+	local end_ = Pos:new(node:end_()):to_vim()
 
-	local el = math.min(end_[1], f.line("$"))
-	local ec = math.max(end_[2] - 1, 0)
+	local el = math.min(end_.row, f.line("$"))
+	local ec = math.max(end_.col - 1, 0)
 
-	a.nvim_buf_set_mark(0, "<", start[1], start[2], {})
+	a.nvim_buf_set_mark(0, "<", start.row, start.col, {})
 	a.nvim_buf_set_mark(0, ">", el, ec, {})
 end
 
@@ -223,16 +224,17 @@ local function resume_visual_charwise()
 end
 
 ---@deprecated use `api.doc.get_selection_range`
+--- @return treeclimber.Pos, treeclimber.Pos
 local function get_selection_range()
-	local start = Pos.to_ts(a.nvim_win_get_cursor(0))
-	local end_ = Pos.to_ts({ f.line("v"), f.col("v") })
+	local start = Pos.from_list(a.nvim_win_get_cursor(0)):to_ts()
+	local end_ = Pos:new(f.line("v"), f.col("v")):to_ts()
 	return start, end_
 end
 
 ---@return treeclimber.Range
 function api.buf.get_selection_range()
-	local from = Pos.to_ts(a.nvim_win_get_cursor(0))
-	local to = Pos.to_ts({ f.line("v"), f.col("v") })
+	local from = Pos.from_list(a.nvim_win_get_cursor(0)):to_ts()
+	local to = Pos:new(f.line("v"), f.col("v")):to_ts()
 	return Range.new(from, to)
 end
 
@@ -310,9 +312,12 @@ function api.get_larger_ancestor(node, range)
 end
 
 -- Check if visual selection is covering the node, with the cursor at the end
+--- @param node TSNode
+--- @param start treeclimber.Pos
+--- @param end_ treeclimber.Pos
 local function is_selected_cursor_end(node, start, end_)
 	local sr, sc, er, ec = node:range()
-	return er == start[1] and ec == (start[2] + 1) and sr == end_[1] and sc == (end_[2] - 1)
+	return er == start.row and ec == (start.col + 1) and sr == end_.row and sc == (end_.col - 1)
 end
 
 ---@deprecated use `is_selected_cursor_start_v2`
@@ -321,7 +326,7 @@ end
 ---@param end_ treeclimber.Pos
 local function is_selected_cursor_start(node, start, end_)
 	local sr, sc, er, ec = node:range()
-	return sr == start[1] and sc == start[2] and er == end_[1] and ec == end_[2]
+	return sr == start.row and sc == start.col and er == end_.row and ec == end_.col
 end
 
 ---Apply highlights
@@ -571,6 +576,9 @@ end
 -- Start with the covering node, if the start and end match it's exactly
 -- then return it, otherwise find the slice of the node that most closesly
 -- matches the selection
+--- @param start treeclimber.Pos
+--- @param end_ treeclimber.Pos
+--- @return TSNode[]
 local function get_covering_nodes(start, end_)
 	local parent = get_covering_node(start, end_)
 
@@ -578,14 +586,14 @@ local function get_covering_nodes(start, end_)
 		return nil
 	end
 
-	if Pos.eq({ parent:end_() }, end_) and Pos.eq({ parent:start() }, start) then
+	if Pos.eq(Pos:new(parent:end_()), end_) and Pos.eq(Pos:new(parent:start()), start) then
 		return { parent }
 	end
 
 	local nodes = {}
 
 	for child in parent:iter_children() do
-		if child:named() and Pos.gte({ child:start() }, start) and Pos.lte({ child:end_() }, end_) then
+		if child:named() and Pos.gte(Pos:new(child:start()), start) and Pos.lte(Pos:new(child:end_()), end_) then
 			table.insert(nodes, child)
 		end
 	end

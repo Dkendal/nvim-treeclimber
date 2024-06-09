@@ -6,6 +6,5 @@
 /.luarocks
 
 .envrc
-/lua
 cover
 luacov.*

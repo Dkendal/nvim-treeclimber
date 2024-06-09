@@ -1,134 +1,135 @@
----@class treeclimber.Pos
----@field [1] number
----@field [2] number
+--- @class treeclimber.Pos
+--- @field row integer
+--- @field col integer
 local Pos = {}
 
-function Pos.new(row, col)
+--- @param row integer
+--- @param col integer
+--- @return treeclimber.Pos
+function Pos:new(row, col)
 	local pos = {
-		row,
-		col,
-		row = Pos.row,
-		col = Pos.col,
-		values = Pos.values,
+		row = row,
+		col = col,
 	}
 
-	setmetatable(pos, Pos)
+	setmetatable(pos, self)
+
+	self.__index = self
 
 	return pos
 end
 
+--- @param list integer[]
+--- @return treeclimber.Pos
 function Pos.from_list(list)
-	return Pos.new(list[1], list[2])
+	return Pos:new(list[1], list[2])
+end
+
+--- @param other treeclimber.Pos
+--- @return boolean
+function Pos:__lt(other)
+	return Pos.lt(self, other)
+end
+
+--- @param other treeclimber.Pos
+--- @return boolean
+function Pos:__gt(other)
+	return Pos.gt(self, other)
+end
+
+--- @param other treeclimber.Pos
+--- @return boolean
+function Pos:__eq(other)
+	return Pos.eq(self, other)
+end
+
+--- @param other treeclimber.Pos
+--- @return treeclimber.Pos
+function Pos:__add(other)
+	return Pos.add(self, other)
+end
+
+--- @param other treeclimber.Pos
+--- @return treeclimber.Pos
+function Pos:__sub(other)
+	return Pos.sub(self, other)
 end
 
 function Pos:__tostring()
-	return string.format("(%d, %d)", self[1], self[2])
+	return string.format("(%d, %d)", self.row, self.col)
 end
 
-function Pos.__lt(a, b)
-	return Pos.lt(a, b)
+--- @param other treeclimber.Pos
+--- @return treeclimber.Pos
+function Pos:__mul(other)
+	return Pos:new(self.row * other, self.col * other)
 end
 
-function Pos.__gt(a, b)
-	return Pos.gt(a, b)
-end
-
-function Pos.__eq(a, b)
-	return Pos.eq(a, b)
-end
-
-function Pos.__add(a, b)
-	return Pos.add(a, b)
-end
-
-function Pos.__sub(a, b)
-	return Pos.sub(a, b)
-end
-
-function Pos.__tostring(v)
-	return string.format("(%d, %d)", v[1], v[2])
-end
-
-function Pos.__mul(a, b)
-	return Pos.new(a[1] * b, a[2] * b)
-end
-
-function Pos.__div(a, b)
-	return Pos.new(a[1] / b, a[2] / b)
-end
-
----@return number
-function Pos:row()
-	return self[1]
-end
-
----@return number
-function Pos:col()
-	return self[2]
+--- @param other treeclimber.Pos
+--- @return treeclimber.Pos
+function Pos:__div(other)
+	return Pos:new(self.row / other, self.col / other)
 end
 
 -- Convert 1 indexed row to 0 indexed
 -- Vim pos -> Tree-sitter pos
----@param v treeclimber.Pos
----@return treeclimber.Pos
-function Pos.to_ts(v)
-	return Pos.new(v[1] - 1, v[2])
+--- @return treeclimber.Pos
+function Pos:to_ts()
+	return Pos:new(self.row - 1, self.col)
 end
 
 -- Convert 0 indexed row to 1 indexed
 -- Tree-sitter treeclimber.Pos -> Vim treeclimber.Pos
----@param v treeclimber.Pos
----@return treeclimber.Pos
-function Pos.to_vim(v)
-	return Pos.new(v[1] + 1, v[2])
+--- @return treeclimber.Pos
+function Pos:to_vim()
+	return Pos:new(self.row + 1, self.col)
 end
 
----@param a treeclimber.Pos
----@param b treeclimber.Pos
----@return boolean
-function Pos.gt(a, b)
-	return (a[1] > b[1]) or (a[1] == b[1] and a[2] > b[2])
+--- @param other treeclimber.Pos
+--- @return boolean
+function Pos:gt(other)
+	return (self.row > other.row) or (self.row == other.row and self.col > other.col)
 end
 
-function Pos.add(a, b)
-	return Pos.new(a[1] + b[1], a[2] + b[2])
+--- @param other treeclimber.Pos
+--- @return treeclimber.Pos
+function Pos:add(other)
+	return Pos:new(self.row + other.row, self.col + other.col)
 end
 
-function Pos.sub(a, b)
-	return Pos.new(a[1] - b[1], a[2] - b[2])
+--- @param other treeclimber.Pos
+--- @return treeclimber.Pos
+function Pos:sub(other)
+	return Pos:new(self.row - other.row, self.col - other.col)
 end
 
----@param a treeclimber.Pos
----@param b treeclimber.Pos
----@return boolean
-function Pos.eq(a, b)
-	return a[1] == b[1] and a[2] == b[2]
+--- @param other treeclimber.Pos
+--- @return boolean
+function Pos:eq(other)
+	return self.row == other.row and self.col == other.col
 end
 
----@param a treeclimber.Pos
----@param b treeclimber.Pos
----@return boolean
-function Pos.gte(a, b)
-	return Pos.gt(a, b) or Pos.eq(a, b)
+--- @param other treeclimber.Pos
+--- @return boolean
+function Pos:gte(other)
+	return Pos.gt(self, other) or Pos.eq(self, other)
 end
 
----@param a treeclimber.Pos
----@param b treeclimber.Pos
----@return boolean
-function Pos.lt(a, b)
-	return (a[1] < b[1]) or (a[1] == b[1] and a[2] < b[2])
+--- @param other treeclimber.Pos
+--- @return boolean
+function Pos:lt(other)
+	return (self.row < other.row) or (self.row == other.row and self.col < other.col)
 end
 
----@param a treeclimber.Pos
----@param b treeclimber.Pos
----@return boolean
-function Pos.lte(a, b)
-	return not Pos.gt(a, b)
+--- @param other treeclimber.Pos
+--- @return boolean
+function Pos:lte(other)
+	return not Pos.gt(self, other)
 end
 
----@return number, number
+--- @return integer, integer
 function Pos:values()
-	return self[1], self[2]
+	return self.row, self.col
 end
 
 return Pos
