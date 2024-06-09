@@ -1,6 +1,6 @@
 return {
   _all = {
-    lua = "./tests/lua.sh",
+    lua = "./tests/lua",
     helper = "./tests/test_helper.lua",
     verbose = true,
     coverage = true,

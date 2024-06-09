@@ -4,7 +4,6 @@
 /luarocks
 /lua_modules
 /.luarocks
-
-.envrc
-cover
-luacov.*
+/.envrc
+/cover
+/luacov.*
