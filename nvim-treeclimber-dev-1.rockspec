@@ -25,7 +25,8 @@ test = {
    command = "busted",
    flags = {
       "--shuffle",
-      "--coverage"
+      "--coverage",
+      "--defer-print",
    },
 }
 build = {
