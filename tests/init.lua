@@ -5,5 +5,6 @@ vim.o.runtimepath = vim.o.runtimepath .. ",."
 
 require("nvim-treesitter.configs").setup({
 	ensure_installed = { "lua" },
-	sync_install = true
+	sync_install = true,
 })
+

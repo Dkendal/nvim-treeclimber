@@ -7,3 +7,5 @@
 /.envrc
 /cover
 /luacov.*
+/check.json
+*.log

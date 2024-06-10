@@ -16,11 +16,40 @@ tasks:
   nvim:
     interactive: true
     env:
-      XDG_CONFIG_HOME: '.tests/xdg/config/'
-      XDG_STATE_HOME: '.tests/xdg/local/state/'
-      XDG_DATA_HOME: '.tests/xdg/local/share/'
+      XDG_CONFIG_HOME: ".tests/xdg/config/"
+      XDG_STATE_HOME: ".tests/xdg/local/state/"
+      XDG_DATA_HOME: ".tests/xdg/local/share/"
 
     cmd: nvim -u ./tests/init.lua
+
+  plug.add:
+    desc: "Add a plugin to the pack directory, usage: task plug.add [start=URL] [opt=URL]"
+
+    aliases: [pa]
+    vars:
+      plug_dir: ".tests/xdg/local/share/nvim/site/pack/testing/start"
+      start: '{{default .start ""}}'
+      opt: '{{default .opt ""}}'
+
+    cmd: |
+      start={{shellQuote .start}}
+      opt={{shellQuote .opt}}
+      kind=""
+      url=""
+
+      if [ -n "$start" ]; then
+        kind="start"
+        url="$start"
+      elif [ -n "$opt" ]; then
+        kind="opt"
+        url="$opt"
+      fi
+
+      basename="$(basename "$url")"
+
+      path=".tests/xdg/local/share/nvim/site/pack/testing/$kind/$basename"
+
+      git submodule add --force --depth 1 "$url" "$path"
 
   install:
     aliases: [i]
@@ -32,3 +61,14 @@ tasks:
 
   lint:
     cmd: selene .
+
+  lint.luasp:
+    vars:
+      pager:
+        sh: command -v tspin || command -v less
+    env:
+      VIMRUNTIME:
+        sh: nvim --clean --headless --cmd 'echo $VIMRUNTIME|q'
+    cmds:
+      - ./.tests/xdg/local/share/nvim/mason/bin/lua-language-server --check . --checkLevel=Hint  --logpath=.
+      - ./tests/nvim -l ./tests/lualsp-report.lua | {{.pager}}
