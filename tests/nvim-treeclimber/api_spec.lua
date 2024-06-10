@@ -1,8 +1,10 @@
 local assert = require("luassert")
 local api = require("nvim-treeclimber.api")
 local Range = require("nvim-treeclimber.range")
+local get_node_text = vim.treesitter.get_node_text
+local get_node = vim.treesitter.get_node
 
---- @param source string
+--- @param str string
 --- @return string, Range4
 local function cursor_pos(str)
   local acc = {}
@@ -61,10 +63,6 @@ local function dedent(term)
   return table.concat(lines, "\n")
 end
 
-local function buf(str)
-  return cursor_pos(dedent(str))
-end
-
 local function parse(source)
   ---@type vim.treesitter.LanguageTree
   local lt = vim.treesitter.get_string_parser(source, "lua")
@@ -76,6 +74,13 @@ local function parse(source)
   end
 
   return tree
+end
+
+local function buf(str)
+  local source, range = cursor_pos(dedent(str))
+  local tree = parse(source)
+  local node = tree:root():named_descendant_for_range(unpack(range))
+  return source, range, node, tree
 end
 
 describe("api.node.named_descendant_for_range/2", function()
@@ -93,61 +98,44 @@ end)
 
 describe("api.node.grow/2", function()
   it("grows the selection", function()
-    local source = [[local a = 1]]
-    local root = parse(source):root()
+    ---@type string, Range4, TSNode?
+    local source, _range, node = buf([[
+      local a = 1
+                ^
+    ]])
 
-    -- Position of "1"
-    local actual = api.node.named_descendant_for_range(root, Range.new4(0, 10, 0, 11))
+    assert(node)
+    node = api.node.grow(node)
 
-    assert(actual)
+    assert(node)
+    assert.are_same(get_node_text(node, source), "a = 1")
 
-    actual = api.node.grow(actual)
-
-    assert(actual)
-
-    assert.are_same({ 0, 6, 0, 11 }, { actual:range() })
-
-    actual = api.node.grow(actual)
-    assert(actual)
-    assert.are_same({ 0, 0, 0, 11 }, { actual:range() })
+    node = api.node.grow(node)
+    assert(node)
+    assert.are_same(get_node_text(node, source), "local a = 1")
 
     -- Stops at the root
-    actual = api.node.grow(actual)
-    assert(actual)
-    assert.are_same({ 0, 0, 0, 11 }, { actual:range() })
+    node = api.node.grow(node)
+    assert(node)
+    assert.are_same(get_node_text(node, source), "local a = 1")
   end)
 end)
 
 describe("api.node.shrink/2", function()
   it("shrinks the selection", function()
-    local expected_range, _
-    local source = buf([[
+    local source, _range, node = buf([[
       local a = 1
     ]])
 
-    local actual = parse(source):root()
+    node = api.node.shrink(node, {})
+    assert.are_same(get_node_text(node, source), "a = 1")
 
-    actual = api.node.shrink(actual, {})
-    assert(actual)
-
-    _, expected_range = buf([[
-      local a = 1
-            ^    $
-    ]])
-    assert.are_same(expected_range, { actual:range() })
-
-    _, expected_range = buf([[
-      local a = 1
-            ^
-    ]])
-    actual = api.node.shrink(actual, {})
-    assert(actual)
-    assert.are_same(expected_range, { actual:range() })
+    node = api.node.shrink(node, {})
+    assert.are_same(get_node_text(node, source), "a")
 
     -- Can't shrink further
-    actual = api.node.shrink(actual, {})
-    assert(actual)
-    assert.are_same(expected_range, { actual:range() })
+    node = api.node.shrink(node, {})
+    assert.are_same(get_node_text(node, source), "a")
   end)
 end)
 
@@ -198,7 +186,6 @@ describe("test helpers", function()
     text, range = cursor_pos(source)
     assert.are.equal(text, "local a = 1")
     assert.are.same(range, { 0, 6, 0, 7 })
-
 
     source = vim.fn.join({
       "local a = 1",
