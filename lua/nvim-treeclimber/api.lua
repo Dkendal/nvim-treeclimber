@@ -395,16 +395,20 @@ function api.select_current_node()
 end
 
 function api.select_expand()
-	local node = api.buf.get_selected_node()
+	local range = api.buf.get_selection_range()
+	local node = api.buf.get_covering_node(range)
 
 	if not node then
 		return
 	end
 
-	node = api.node.grow(node)
+	-- First select the node, then grow it if it's the only node selected
+	if vim.deep_equal(range:to_list(), { node:range() }) then
+		node = api.node.grow(node)
 
-	if not node then
-		return
+		if not node then
+			return
+		end
 	end
 
 	push_history(node)
