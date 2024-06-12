@@ -1,0 +1,12 @@
+return {
+  _all = {
+    lua = "./tests/lua",
+    helper = "./tests/test_helper.lua",
+    verbose = true,
+    coverage = true,
+    defer_print = true,
+  },
+  default = {
+    ROOT = { "./tests" },
+  },
+}

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+mkdir -p cover
+mkdir -p lua_modules
+
+rm -rf cover/*
+
+./tests/nvim -l "$@"
+
+# lua ./tests/console_reporter.lua ./cover/report.out "$@"

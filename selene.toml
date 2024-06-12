@@ -1,0 +1,3 @@
+std = "lua51+vim+busted"
+
+exclude = [".tests/*", "lua/nvim-treeclimber/vivid/*", "3rd/*"]

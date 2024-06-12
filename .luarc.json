@@ -1,0 +1,55 @@
+{
+    "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+    "runtime": {
+        "version": "LuaJIT",
+        "path": [
+            "?.lua",
+            "init/?.lua"
+        ],
+        "pathStrict": true
+    },
+    "workspace": {
+        "ignoreDir": [
+            ".git",
+            ".task"
+        ],
+        "library": [
+            "./lua",
+            "$VIMRUNTIME/lua",
+            "${3rd}/luassert/library",
+            "${3rd}/busted/library",
+            "${3rd}/luv/library",
+            "./.tests/xdg/local/share/nvim/site/pack/testing/start/nvim-treesitter/"
+        ]
+    },
+    "diagnostics": {
+        "groupSeverity": {
+            "ambiguity": "Error",
+            "await": "Error",
+            "codestyle": "Error",
+            "duplicate": "Error",
+            "global": "Error",
+            "luadoc": "Error",
+            "redefined": "Error",
+            "strict": "Error",
+            "strong": "Error",
+            "type-check": "Error",
+            "unbalanced": "Error",
+            "unused": "Error"
+        },
+        "severity": {
+            "redefined-local": "Warning!"
+        },
+        "unusedLocalExclude": [
+            "_*"
+        ]
+    },
+    "type": {
+        "castNumberToInteger": false,
+        "weakNilCheck": false,
+        "inferParamType": false,
+        "weakUnionCheck": false
+    },
+    "hint.enable": true,
+    "semantic.variable": true
+}

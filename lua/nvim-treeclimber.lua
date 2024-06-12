@@ -109,7 +109,7 @@ function M.setup_augroups()
 	})
 end
 
-function M.setup(opts)
+function M.setup()
 	M.setup_keymaps()
 	M.setup_user_commands()
 	M.setup_augroups()

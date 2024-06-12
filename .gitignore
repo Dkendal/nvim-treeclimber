@@ -1,2 +1,11 @@
-.task
-.nvimrc.lua
+/.task
+/.nvimrc.lua
+/.tests
+/luarocks
+/lua_modules
+/.luarocks
+/.envrc
+/cover
+/luacov.*
+/check.json
+*.log

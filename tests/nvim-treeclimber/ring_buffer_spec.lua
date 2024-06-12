@@ -1,4 +1,4 @@
-local RingBuffer = require("nvim-treeclimber.data.ring_buffer")
+local RingBuffer = require("nvim-treeclimber.ring_buffer")
 
 describe("RingBuffer", function()
 	it("works", function()
