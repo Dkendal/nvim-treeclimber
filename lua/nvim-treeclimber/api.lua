@@ -211,19 +211,19 @@ local function visual_select_node_end(node)
 end
 
 local function resume_visual_charwise()
-	if f.visualmode() == "v" then
+	local visualmode = f.visualmode()
+
+	if ({ ["v"] = true, [""] = true })[visualmode] then
 		vim.cmd.normal("gv")
-	elseif
-	-- 22 is the unicode decimal representation of <C-V>
-			f.visualmode() == "V" or f.visualmode() == "\22"
-	then
+	elseif ({ ["V"] = true, ["\22"] = true })[visualmode] then
+		-- 22 is the unicode decimal representation of <C-V>
 		vim.cmd.normal("gvv")
-	else
-		vim.cmd.normal("gvgh")
 	end
+
+	assert(vim.fn.mode() == "v", "Failed to resume visual mode")
 end
 
----@deprecated use `api.doc.get_selection_range`
+---@deprecated use `api.buf.get_selection_range`
 --- @return treeclimber.Pos, treeclimber.Pos
 local function get_selection_range()
 	local start = Pos.from_list(a.nvim_win_get_cursor(0)):to_ts()

@@ -60,79 +60,39 @@ describe("api.node.shrink/2", function()
   end)
 end)
 
-describe("test helpers", function()
-  it("dedent works", function()
-    local str
+describe("functional tests", function()
+  it("grows the selection", function()
+    local buf = vim.api.nvim_create_buf(true, false)
 
-    str = [[
+    local out = vim.api.nvim_buf_call(buf, function()
+      vim.bo.filetype = "lua"
 
-
-      local a = 1
-    ]]
-    assert.are.equal(
-      t:dedent(str),
-      table.concat({
-        "",
-        "",
+      vim.api.nvim_buf_set_lines(buf, 0, -1, true, {
         "local a = 1",
-        "",
-      }, "\n")
-    )
+        "local b = 1",
+        "local d = 1",
+        "local e = 1",
+      })
 
-    str = [[
-      local a = 1
-    ]]
-    assert.are.equal(t:dedent(str), "local a = 1\n")
+      vim.api.nvim_feedkeys("gg", "t", true)
+      api.select_expand()
 
-    str = [[
-      local a = 1
-        local b = 2
-    ]]
-    assert.are.equal(t:dedent(str), "local a = 1\n  local b = 2\n")
+      local mode = vim.api.nvim_get_mode().mode
+      local selection_text = nil
 
-    str = [[
-      local a = 1
-      local b = 2
-    ]]
-    assert.are.equal(t:dedent(str), "local a = 1\nlocal b = 2\n")
-  end)
+      if mode == "v" or mode == "V" then
+        local a, b, c, d = api.buf.get_selection_range():values()
+        selection_text = vim.api.nvim_buf_get_text(buf, a, b, c, d, {})
+      end
 
-  it("cursor_pos works", function()
-    local text, range, source
+      return {
+        mode = mode,
+        selection = api.buf.get_selection_range():to_list(),
+        selection_text = selection_text,
+      }
+    end)
 
-    source = vim.fn.join({
-      "local a = 1",
-      "      ^",
-    }, "\n")
-    text, range = t:cursor_pos(source)
-    assert.are.equal(text, "local a = 1")
-    assert.are.same(range, { 0, 6, 0, 7 })
-
-    source = vim.fn.join({
-      "local a = 1",
-      "      ^$",
-    }, "\n")
-    text, range = t:cursor_pos(source)
-    assert.are.equal(text, "local a = 1")
-    assert.are.same(range, { 0, 6, 0, 7 })
-
-    source = vim.fn.join({
-      "local a = 1",
-      "      ^   $",
-    }, "\n")
-    text, range = t:cursor_pos(source)
-    assert.are.equal(text, "local a = 1")
-    assert.are.same(range, { 0, 6, 0, 10 })
-
-    source = vim.fn.join({
-      "function add(x, y)",
-      "^",
-      "  return x + y",
-      "end",
-      "  $",
-    }, "\n")
-    text, range = t:cursor_pos(source)
-    assert.are.equal(text, "function add(x, y)\n  return x + y\nend")
-    assert.are.same(range, { 0, 0, 2, 2 })
+    assert.are.same("v", out.mode)
+    assert.are.same({0, 0, 0, 11}, out.selection)
   end)
 end)
