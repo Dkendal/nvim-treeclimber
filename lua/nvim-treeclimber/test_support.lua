@@ -25,7 +25,7 @@ function test_support:cursor_pos(str)
 			col = string.find(line, "$", 1, true)
 			if col then
 				e_row = #acc - 1
-				e_col = col - 1
+				e_col = col
 			end
 		else
 			table.insert(acc, line)
@@ -101,7 +101,7 @@ function test_support:with_buffer(opts)
 
 		if mode == "v" then
 			vim.api.nvim_buf_set_mark(0, ">", initial_cursor[1] + 1, initial_cursor[2], {})
-			vim.api.nvim_buf_set_mark(0, "<", initial_cursor[3] + 1, initial_cursor[4], {})
+			vim.api.nvim_buf_set_mark(0, "<", initial_cursor[3] + 1, initial_cursor[4] - 1, {})
 			vim.cmd("normal! gv")
 			assert(vim.api.nvim_get_mode().mode == "v", "Failed to enter visual mode")
 		end

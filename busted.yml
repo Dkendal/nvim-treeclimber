@@ -10,6 +10,14 @@ globals:
       - type: string
       - type: function
 
+  after_each:
+    args:
+      - type: function
+
+  before_each:
+    args:
+      - type: function
+
   assert.is_true:
     any: true
 

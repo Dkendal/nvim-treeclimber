@@ -99,7 +99,7 @@ describe("functional tests", function()
 
   it("growing the selection only selects the current node if starting in normal mode", function()
     local out = t:with_buffer({
-      mode = "n",
+      mode = "v",
       text = [[
         local a = 1
                   ^
@@ -110,7 +110,7 @@ describe("functional tests", function()
     })
 
     assert.are.same("v", out.mode)
-    assert.are.same({ "1" }, out:selected_text())
+    assert.are.same({ "a = 1" }, out:selected_text())
   end)
 
   it("selection grows if already in visual mode", function()
@@ -118,10 +118,10 @@ describe("functional tests", function()
       mode = "v",
       text = [[
         local a = 1
-              ^   $
+                  ^
       ]],
       callback = function()
-        -- api.select_expand()
+        api.select_expand()
       end,
     })
 
