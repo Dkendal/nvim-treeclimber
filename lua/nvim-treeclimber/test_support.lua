@@ -79,4 +79,89 @@ function test_support:buf(str)
 	return source, range, node, tree
 end
 
+function test_support:with_buffer(opts)
+	local callback = opts.callback
+	local text = opts.text
+	local filetype = opts.filetype or "lua"
+	local mode = opts.mode or "n"
+
+	local buf = vim.api.nvim_create_buf(true, false)
+
+	local function buf_function()
+		vim.bo.filetype = filetype
+
+		local buffer_text, initial_cursor = test_support:buf(text)
+
+		local lines = vim.split(buffer_text, "\n")
+
+		vim.api.nvim_buf_set_lines(buf, 0, -1, true, lines)
+
+		-- This api is 1-indexed
+		vim.api.nvim_win_set_cursor(0, { initial_cursor[1] + 1, initial_cursor[2] })
+
+		if mode == "v" then
+			vim.api.nvim_buf_set_mark(0, ">", initial_cursor[1] + 1, initial_cursor[2], {})
+			vim.api.nvim_buf_set_mark(0, "<", initial_cursor[3] + 1, initial_cursor[4], {})
+			vim.cmd("normal! gv")
+			assert(vim.api.nvim_get_mode().mode == "v", "Failed to enter visual mode")
+		end
+
+		callback()
+
+		local final_mode = vim.api.nvim_get_mode().mode
+		local cursor = vim.api.nvim_win_get_cursor(0)
+		local line_v = vim.fn.line("v")
+		local col_v = vim.fn.col("v")
+
+		local state = {
+			buf = buf,
+			mode = final_mode,
+			cursor = cursor,
+			line_v = line_v,
+			col_v = col_v,
+		}
+
+		function state:lines()
+			return vim.api.nvim_buf_get_lines(buf, 0, -1, true)
+		end
+
+		function state:delete()
+			vim.api.nvim_buf_delete(buf, { force = true })
+		end
+
+		function state:selected_text()
+			-- This api is 0-indexed
+			return vim.api.nvim_buf_get_text(
+				self.buf,
+				self.cursor[1] - 1,
+				self.cursor[2],
+				self.line_v - 1,
+				self.col_v,
+				{}
+			)
+		end
+
+		return state
+	end
+
+	local success, result = unpack(vim.api.nvim_buf_call(buf, function()
+		local bf_success, bf_result = xpcall(buf_function, function(err)
+			return err
+		end)
+
+		return { bf_success, bf_result }
+	end))
+
+	if not success then
+		-- Bubble any errors up
+		if result.message then
+			error(result.message)
+		else
+			error(result)
+		end
+	end
+
+	return result
+end
+
 return test_support

@@ -13,7 +13,7 @@ local function win_find_buf(buf)
 end
 
 ---@param name string
----@return number | nil
+---@return integer | nil
 local function find_buf(name)
 	for _, buf in ipairs(a.nvim_list_bufs()) do
 		if a.nvim_buf_is_loaded(buf) and a.nvim_buf_get_name(buf) == name then
@@ -47,9 +47,9 @@ function M.new(logger_name)
 
 		local tbl = { ... }
 
-		tbl = vim.tbl_flatten(vim.tbl_map(function(s)
+		tbl = vim.iter(vim.tbl_map(function(s)
 			return vim.split(s, "\n", { plain = true })
-		end, tbl))
+		end, tbl)):flatten():totable()
 
 		a.nvim_buf_set_lines(buf, -1, -1, false, tbl)
 

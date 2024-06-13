@@ -177,13 +177,16 @@ function api.in_temp_win(name, lines)
 	end)
 end
 
+--- Changes the > mark to the start of the node
 --- @param node TSNode
-local function visual_select_start(node)
+local function set_visual_start(node)
 	local start = Pos:new(node:start()):to_vim()
 	a.nvim_buf_set_mark(0, ">", start.row, start.col, {})
 end
 
-local function visual_select_end(node)
+--- Changes the < mark to the start of the node
+--- @param node TSNode
+local function set_visual_end(node)
 	local end_ = Pos:new(node:end_()):to_vim()
 
 	local el = math.min(end_.row, f.line("$"))
@@ -192,11 +195,14 @@ local function visual_select_end(node)
 	a.nvim_buf_set_mark(0, "<", el, ec, {})
 end
 
-local function visual_select_node(node)
-	visual_select_start(node)
-	visual_select_end(node)
+--- Changes the > and < mark to match the node's text region
+--- @param node TSNode
+local function visually_select_node(node)
+	set_visual_start(node)
+	set_visual_end(node)
 end
 
+--- @param node TSNode
 local function visual_select_node_end(node)
 	local start = Pos:new(node:start()):to_vim()
 	local end_ = Pos:new(node:end_()):to_vim()
@@ -206,6 +212,12 @@ local function visual_select_node_end(node)
 
 	a.nvim_buf_set_mark(0, "<", start.row, start.col, {})
 	a.nvim_buf_set_mark(0, ">", el, ec, {})
+end
+
+--- Vim is currently in visual charwise mode
+--- @return boolean
+local function is_visual_charwise()
+	return vim.api.nvim_get_mode().mode == "v"
 end
 
 local function resume_visual_charwise()
@@ -219,6 +231,13 @@ local function resume_visual_charwise()
 	end
 
 	assert(vim.fn.mode() == "v", "Failed to resume visual mode")
+end
+
+--- @param node TSNode
+--- @param range Range4
+--- @return boolean
+local function node_has_range(node, range)
+	return vim.deep_equal({ node:range() }, range)
 end
 
 ---@deprecated use `api.buf.get_selection_range`
@@ -388,7 +407,7 @@ function api.select_current_node()
 	end
 
 	apply_decoration(node)
-	visual_select_node(node)
+	visually_select_node(node)
 	resume_visual_charwise()
 end
 
@@ -400,8 +419,8 @@ function api.select_expand()
 		return
 	end
 
-	-- First select the node, then grow it if it's the only node selected
-	if vim.deep_equal(range:to_list(), { node:range() }) then
+	if is_visual_charwise() and node_has_range(node, range:to_list()) then
+		-- First select the node, then grow it if it's the only node selected
 		node = api.node.grow(node)
 
 		if not node then
@@ -410,9 +429,8 @@ function api.select_expand()
 	end
 
 	push_history(node)
-
 	apply_decoration(node)
-	visual_select_node(node)
+	visually_select_node(node)
 	resume_visual_charwise()
 end
 
@@ -430,7 +448,7 @@ function api.select_shrink()
 	next_node = api.node.shrink(node, plug_history)
 
 	apply_decoration(next_node)
-	visual_select_node(next_node)
+	visually_select_node(next_node)
 	resume_visual_charwise()
 end
 
@@ -453,7 +471,7 @@ function api.select_top_level()
 	end
 
 	apply_decoration(node)
-	visual_select_node(node)
+	visually_select_node(node)
 	resume_visual_charwise()
 end
 
@@ -495,7 +513,7 @@ function api.select_backward()
 	end
 
 	apply_decoration(node)
-	visual_select_node(node)
+	visually_select_node(node)
 	resume_visual_charwise()
 end
 
@@ -512,7 +530,7 @@ function api.select_siblings_backward()
 	end
 
 	apply_decoration(node)
-	visual_select_node(node)
+	visually_select_node(node)
 	resume_visual_charwise()
 end
 
@@ -529,7 +547,7 @@ function api.select_siblings_forward()
 	end
 
 	apply_decoration(node)
-	visual_select_node(node)
+	visually_select_node(node)
 	resume_visual_charwise()
 end
 
@@ -550,7 +568,7 @@ function api.select_prev_node()
 	end
 
 	apply_decoration(node)
-	visual_select_node(node)
+	visually_select_node(node)
 	resume_visual_charwise()
 end
 
@@ -571,7 +589,7 @@ function api.select_forward()
 	end
 
 	apply_decoration(node)
-	visual_select_node(node)
+	visually_select_node(node)
 	resume_visual_charwise()
 end
 
@@ -611,8 +629,8 @@ function api.select_grow_forward()
 		local snode = nodes[1]
 		local enode = nodes[#nodes]
 		enode = enode:next_sibling() or enode
-		visual_select_start(snode)
-		visual_select_end(enode)
+		set_visual_start(snode)
+		set_visual_end(enode)
 		resume_visual_charwise()
 	end
 end
@@ -625,8 +643,8 @@ function api.select_grow_backward()
 		local snode = nodes[1]
 		local enode = nodes[#nodes]
 		snode = snode:prev_named_sibling() or snode
-		visual_select_start(snode)
-		visual_select_end(enode)
+		set_visual_start(snode)
+		set_visual_end(enode)
 		resume_visual_charwise()
 	end
 end

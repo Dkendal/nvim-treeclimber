@@ -61,38 +61,39 @@ describe("api.node.shrink/2", function()
 end)
 
 describe("functional tests", function()
-  it("grows the selection", function()
-    local buf = vim.api.nvim_create_buf(true, false)
+  after_each(function()
+    vim.cmd([[silent %bwipeout!]])
+  end)
 
-    local out = vim.api.nvim_buf_call(buf, function()
-      vim.bo.filetype = "lua"
-
-      vim.api.nvim_buf_set_lines(buf, 0, -1, true, {
-        "local a = 1",
-        "local b = 1",
-        "local d = 1",
-        "local e = 1",
-      })
-
-      vim.api.nvim_feedkeys("gg", "t", true)
-      api.select_expand()
-
-      local mode = vim.api.nvim_get_mode().mode
-      local selection_text = nil
-
-      if mode == "v" or mode == "V" then
-        local a, b, c, d = api.buf.get_selection_range():values()
-        selection_text = vim.api.nvim_buf_get_text(buf, a, b, c, d, {})
-      end
-
-      return {
-        mode = mode,
-        selection = api.buf.get_selection_range():to_list(),
-        selection_text = selection_text,
-      }
-    end)
+  it("growing the selection only selects the current node if starting in normal mode", function()
+    local out = t:with_buffer({
+      mode = "n",
+      text = [[
+        local a = 1
+                  ^
+      ]],
+      callback = function()
+        api.select_expand()
+      end,
+    })
 
     assert.are.same("v", out.mode)
-    assert.are.same({0, 0, 0, 11}, out.selection)
+    assert.are.same({ "1" }, out:selected_text())
+  end)
+
+  it("selection grows if already in visual mode", function()
+    local out = t:with_buffer({
+      mode = "v",
+      text = [[
+        local a = 1
+              ^   $
+      ]],
+      callback = function()
+        -- api.select_expand()
+      end,
+    })
+
+    assert.are.same("v", out.mode)
+    assert.are.same({ "a = 1" }, out:selected_text())
   end)
 end)
