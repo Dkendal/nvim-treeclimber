@@ -10,7 +10,7 @@ local M = {}
 ---@field ctermfg number
 
 ---@param name string
----@return Highlight
+---@return vim.api.keyset.hl_info
 function M.fetch_hl(name, opts)
 	opts = opts or {}
 	local hl = vim.api.nvim_get_hl(0, { name = name })
@@ -26,9 +26,9 @@ function M.fetch_hl(name, opts)
 	return hl
 end
 
----@param name string
----@return Highlight
 --- Returns the highlight group with the given name or the default value if it doesn't exist
+---@param name string
+---@return vim.api.keyset.hl_info
 function M.get_hl(name, opts)
 	opts = opts or {}
 
