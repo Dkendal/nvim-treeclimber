@@ -13,11 +13,7 @@ handler.testEnd = function(element, parent, status, trace)
 			element.trace.short_src
 			.. ":"
 			.. element.trace.linedefined
-			.. " ("
-			.. parent.name
-			.. " / "
-			.. element.trace.message
-			.. ") >",
+			.. "\n↳ ",
 			unpack(v)
 		)
 	end

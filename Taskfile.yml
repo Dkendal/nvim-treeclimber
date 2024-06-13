@@ -63,12 +63,13 @@ tasks:
     cmd: selene .
 
   lint.luasp:
+    silent: true
     vars:
       pager:
         sh: command -v tspin || command -v less
     env:
       VIMRUNTIME:
-        sh: nvim --clean --headless --cmd 'echo $VIMRUNTIME|q'
+        sh: nvim --clean --headless --cmd 'echo $VIMRUNTIME|q' 2>&1 1>/dev/null
     cmds:
-      - ./.tests/xdg/local/share/nvim/mason/bin/lua-language-server --check . --checkLevel=Hint  --logpath=.
-      - ./tests/nvim -l ./tests/lualsp-report.lua | {{.pager}}
+      - ./.tests/xdg/local/share/nvim/mason/bin/lua-language-server --check .  --logpath=.tmp
+      - ./tests/nvim -l ./tests/lualsp-report.lua .tmp/check.json | {{.pager}}

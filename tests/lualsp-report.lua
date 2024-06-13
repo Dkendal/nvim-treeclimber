@@ -1,4 +1,6 @@
-local file = io.open("./check.json", "r")
+local path = arg[1]
+
+local file = io.open(path, "r")
 
 if not file then
 	print("File not found")
@@ -7,9 +9,9 @@ end
 
 local json = vim.json.decode(file:read("*a"))
 
-for file, diagnostics in pairs(json) do
+for f, diagnostics in pairs(json) do
 	-- remove leading "file://"
-	local path = string.sub(file, 8)
+	local path = string.sub(f, 8)
 	local path_ = vim.fn.fnamemodify(path, ":~:.")
 	assert(path_)
 	path = path_
