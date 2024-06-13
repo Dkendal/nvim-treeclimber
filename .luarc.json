@@ -19,7 +19,7 @@
             "${3rd}/luassert/library",
             "${3rd}/busted/library",
             "${3rd}/luv/library",
-            "./.tests/xdg/local/share/nvim/site/pack/testing/start/nvim-treesitter/"
+            "./.tests/xdg/local/share/nvim/site/pack/testing/start/nvim-treesitter"
         ]
     },
     "diagnostics": {
