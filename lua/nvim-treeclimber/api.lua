@@ -713,6 +713,10 @@ function api.draw_boundary()
 
 	local i = 0
 	while true do
+		if node == nil then
+			return
+		end
+
 		local row, col = node:start()
 		local end_row, end_col = node:end_()
 
@@ -725,10 +729,6 @@ function api.draw_boundary()
 		i = i + 1
 
 		node = node:parent()
-
-		if node == nil then
-			return
-		end
 	end
 end
 
