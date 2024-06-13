@@ -585,7 +585,7 @@ local function get_covering_nodes(start, end_)
 	local parent = get_covering_node(start, end_)
 
 	if parent == nil then
-		return nil
+		return {}
 	end
 
 	if Pos.eq(Pos:new(parent:end_()), end_) and Pos.eq(Pos:new(parent:start()), start) then
