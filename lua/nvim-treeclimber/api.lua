@@ -1,7 +1,6 @@
 local ts = vim.treesitter
 local f = vim.fn
 local a = vim.api
-local logger = require("nvim-treeclimber.logger").new("Treeclimber log")
 local Pos = require("nvim-treeclimber.pos")
 local Range = require("nvim-treeclimber.range")
 local Stack = require("nvim-treeclimber.stack")
@@ -17,7 +16,6 @@ local boundaries_ns = a.nvim_create_namespace("nvim-treeclimber-boundaries")
 
 -- For reloading the file in dev
 if vim.g.treeclimber_loaded then
-	logger.clear()
 	a.nvim_buf_clear_namespace(0, ns, 0, -1)
 else
 	vim.g.treeclimber_loaded = true

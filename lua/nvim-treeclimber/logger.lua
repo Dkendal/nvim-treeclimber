@@ -1,6 +1,5 @@
 local M = {}
 
-local f = vim.fn
 local a = vim.api
 
 local function win_find_buf(buf)
