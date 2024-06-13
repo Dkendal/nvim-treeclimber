@@ -11,12 +11,12 @@ local json = vim.json.decode(file:read("*a"))
 
 for f, diagnostics in pairs(json) do
 	-- remove leading "file://"
-	local path = string.sub(f, 8)
-	local path_ = vim.fn.fnamemodify(path, ":~:.")
-	assert(path_)
-	path = path_
+	local localpath = string.sub(f, 8)
+	local localpath_ = vim.fn.fnamemodify(localpath, ":~:.")
+	assert(localpath_)
+	localpath = localpath_
 
-	if path:match(".tests/") then
+	if localpath:match(".tests/") then
 		goto continue
 	end
 
@@ -32,7 +32,7 @@ for f, diagnostics in pairs(json) do
 		io.write(
 			string.format(
 				"%s:%s:%s:%s: %s\n",
-				path,
+				localpath,
 				diagnostic.range.start.line,
 				diagnostic.range.start.character,
 				vim.diagnostic.severity[diagnostic.severity],
