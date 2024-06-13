@@ -97,7 +97,7 @@ describe("functional tests", function()
     vim.cmd([[silent %bwipeout!]])
   end)
 
-  it("growing the selection only selects the current node if starting in normal mode", function()
+  it("grows the selection only selects the current node if starting in normal mode", function()
     local out = t:with_buffer({
       mode = "v",
       text = [[
@@ -113,7 +113,7 @@ describe("functional tests", function()
     assert.are.same({ "a = 1" }, out:selected_text())
   end)
 
-  it("selection grows if already in visual mode", function()
+  it("grows the selection when already in visual mode", function()
     local out = t:with_buffer({
       mode = "v",
       text = [[
@@ -127,5 +127,37 @@ describe("functional tests", function()
 
     assert.are.same("v", out.mode)
     assert.are.same({ "a = 1" }, out:selected_text())
+  end)
+
+  it("can select the previous node", function()
+    local out = t:with_buffer({
+      mode = "v",
+      text = [[
+        local a = 1
+                  ^
+      ]],
+      callback = function()
+        api.select_backward()
+      end,
+    })
+
+    assert.are.same("v", out.mode)
+    assert.are.same({ "a" }, out:selected_text())
+  end)
+
+  it("can select the next node", function()
+    local out = t:with_buffer({
+      mode = "v",
+      text = [[
+        local a = 1
+              ^
+      ]],
+      callback = function()
+        api.select_forward()
+      end,
+    })
+
+    assert.are.same("v", out.mode)
+    assert.are.same({ "1" }, out:selected_text())
   end)
 end)

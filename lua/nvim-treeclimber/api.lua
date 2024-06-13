@@ -240,6 +240,15 @@ local function node_has_range(node, range)
 	return vim.deep_equal({ node:range() }, range)
 end
 
+--- Reports if the node is selected, returns false if not currently in visual
+--- mode or if visual mode does not perfectly match the node boundaries
+--- @param node TSNode
+--- @param range Range4
+--- @return boolean
+local function node_is_selected(node, range)
+	return is_visual_charwise() and node_has_range(node, range)
+end
+
 ---@deprecated use `api.buf.get_selection_range`
 --- @return treeclimber.Pos, treeclimber.Pos
 local function get_selection_range()
@@ -419,7 +428,7 @@ function api.select_expand()
 		return
 	end
 
-	if is_visual_charwise() and node_has_range(node, range:to_list()) then
+	if node_is_selected(node, range:to_list()) then
 		-- First select the node, then grow it if it's the only node selected
 		node = api.node.grow(node)
 
@@ -497,21 +506,26 @@ function api.select_forward_end()
 end
 
 function api.select_backward()
-	local start, end_ = get_selection_range()
-	local node = get_covering_node(start, end_)
+	local range = api.buf.get_selection_range()
+	local node = api.buf.get_covering_node(range)
 
 	if node == nil then
 		return
 	end
 
-	if is_selected_cursor_start(node, start, end_) and node:prev_named_sibling() then
+	if node_is_selected(node, range:to_list()) and node:prev_named_sibling() then
 		node = node:prev_named_sibling()
+
+		if node == nil then
+			return
+		end
 	end
 
 	if node == nil then
 		return
 	end
 
+	push_history(node)
 	apply_decoration(node)
 	visually_select_node(node)
 	resume_visual_charwise()
@@ -551,43 +565,27 @@ function api.select_siblings_forward()
 	resume_visual_charwise()
 end
 
-function api.select_prev_node()
-	local start, end_ = get_selection_range()
-	local node = get_covering_node(start, end_)
-
-	if node == nil then
-		return
-	end
-
-	if node:prev_named_sibling() then
-		node = node:prev_named_sibling()
-	end
-
-	if node == nil then
-		return
-	end
-
-	apply_decoration(node)
-	visually_select_node(node)
-	resume_visual_charwise()
-end
-
 function api.select_forward()
-	local start, end_ = get_selection_range()
-	local node = get_covering_node(start, end_)
+	local range = api.buf.get_selection_range()
+	local node = api.buf.get_covering_node(range)
 
 	if node == nil then
 		return
 	end
 
-	if node:next_sibling() then
-		node = node:next_sibling()
+	if node_is_selected(node, range:to_list()) and node:next_named_sibling() then
+		node = node:next_named_sibling()
+
+		if node == nil then
+			return
+		end
 	end
 
 	if node == nil then
 		return
 	end
 
+	push_history(node)
 	apply_decoration(node)
 	visually_select_node(node)
 	resume_visual_charwise()
