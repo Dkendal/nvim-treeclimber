@@ -696,6 +696,11 @@ function api.node.shrink(node, history)
 		-- Ignore the current node
 
 		-- Only return a previously visited node if it's a descendant of the current node
+		assert(
+			type(descendant_range) == "table" and #descendant_range == 4,
+			string.format("Expected a Range4, got %s", type(descendant_range))
+		)
+
 		if descendant_range and vim.treesitter.node_contains(node, descendant_range) then
 			next = api.node.largest_named_descendant_for_range(node, descendant_range)
 			-- This should always be true

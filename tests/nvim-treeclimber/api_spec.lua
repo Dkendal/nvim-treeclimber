@@ -17,6 +17,38 @@ describe("api.node.named_descendant_for_range/2", function()
   end)
 end)
 
+describe("properties", function()
+  it("growing and then shrinking should return to the same node", function()
+    ---@type string, Range4, TSNode?
+    local source, _range, node = t:buf([[
+      return a or b or c
+                       ^
+    ]])
+
+    assert(node)
+    local history = { { node:range() } }
+    assert.are_same(get_node_text(node, source), "c")
+
+    node = api.node.grow(node)
+    assert(node)
+    table.insert(history, { node:range() })
+    assert.are_same(get_node_text(node, source), "a or b or c")
+
+    node = api.node.grow(node)
+    assert(node)
+    table.insert(history, { node:range() })
+    assert.are_same(get_node_text(node, source), "return a or b or c")
+
+    node = api.node.shrink(node, history)
+    assert(node)
+    assert.are_same(get_node_text(node, source), "a or b or c")
+
+    node = api.node.shrink(node, history)
+    assert(node)
+    assert.are_same(get_node_text(node, source), "c")
+  end)
+end)
+
 describe("api.node.grow/2", function()
   it("grows the selection", function()
     ---@type string, Range4, TSNode?
