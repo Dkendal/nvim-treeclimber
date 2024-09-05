@@ -3,11 +3,7 @@ local hsl = require("nvim-treeclimber.vivid.hsl.type")
 
 local M = {}
 
----@class Highlight
----@field bg number
----@field fg number
----@field ctermbg number
----@field ctermfg number
+---@alias Highlight vim.api.keyset.hl_info
 
 ---@param name string
 ---@return vim.api.keyset.hl_info
@@ -45,14 +41,20 @@ function M.get_hl(name, opts)
 	return hl
 end
 
+---@class HSLUVHighlight
+---@field bg? HSLUV
+---@field fg? HSLUV
+---@field ctermbg? HSLUV
+---@field ctermfg? HSLUV
+
 M.HSLUVHighlight = {}
 
+---@param hl Highlight
+---@return HSLUVHighlight
 function M.HSLUVHighlight:new(hl)
 	return {
-		bg = M.base_ten_to_hsluv(hl.bg),
-		fg = M.base_ten_to_hsluv(hl.fg),
-		ctermbg = hl.ctermbg,
-		ctermfg = hl.ctermfg,
+		bg = hl.bg and M.base_ten_to_hsluv(hl.bg) or nil,
+		fg = hl.fg and M.base_ten_to_hsluv(hl.fg) or nil,
 	}
 end
 
@@ -102,25 +104,6 @@ end
 function M.fg_hsl(name)
 	local hl = M.fetch_hl(name)
 	return M.hsluv(hl.fg)
-end
-
-function M.ansi_colors()
-	local t = {}
-
-	if not vim.g.terminal_color_0 then
-		error("Terminal colors not found see :help terminal-config")
-	end
-
-	for i = 0, 15 do
-		---@type string
-		local value = vim.g["terminal_color_" .. i]
-
-		if value then
-			t[i] = hsl(value)
-		end
-	end
-
-	return t
 end
 
 return M

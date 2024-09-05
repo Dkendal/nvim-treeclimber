@@ -13,6 +13,10 @@ local type_fns = {
   name = function() return "hsluv()" end
 }
 
+---@param h_or_hex number|string
+---@param s? number
+---@param l? number
+---@return HSLUV
 local M = function(h_or_hex, s, l)
   return hsl_like(h_or_hex, s, l, type_fns)
 end

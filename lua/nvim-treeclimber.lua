@@ -71,30 +71,20 @@ end
 function M.setup_highlight()
 	-- Must run after colorscheme or TermOpen to ensure that terminal_colors are available
 	local hi = require("nvim-treeclimber.hi")
-	local term_colors = hi.ansi_colors()
-	local hi_normal = hi.get_hl("Normal", { follow = true })
 
-	hi_normal = hi_normal and hi_normal.bg and hi.HSLUVHighlight:new(hi_normal)
-			or { bg = term_colors[0], fg = term_colors[1] }
+	local Normal = hi.get_hl("Normal", { follow = true })
+	assert(not vim.tbl_isempty(Normal), "hi Normal not found")
+	local normal = hi.HSLUVHighlight:new(Normal)
 
-	if vim.tbl_isempty(hi_normal) then
-		return
-	end
+	local Visual = hi.get_hl("Visual", { follow = true })
+	assert(not vim.tbl_isempty(Visual), "hi Visual not found")
+	local visual = hi.HSLUVHighlight:new(Visual)
 
-	local bg = hi_normal.bg
-	local fg = hi_normal.fg
-
-	local dim = bg.mix(fg, 20)
-
-	vim.api.nvim_set_hl(0, "TreeClimberHighlight", { background = dim.hex })
-
-	vim.api.nvim_set_hl(0, "TreeClimberSiblingBoundary", { background = term_colors[5].hex })
-
-	vim.api.nvim_set_hl(0, "TreeClimberSibling", { background = term_colors[5].mix(bg, 40).hex, bold = true })
-
-	vim.api.nvim_set_hl(0, "TreeClimberParent", { background = bg.mix(fg, 2).hex })
-
-	vim.api.nvim_set_hl(0, "TreeClimberParentStart", { background = term_colors[4].mix(bg, 10).hex, bold = true })
+	vim.api.nvim_set_hl(0, "TreeClimberHighlight", { background = visual.bg.hex })
+	vim.api.nvim_set_hl(0, "TreeClimberSiblingBoundary", { background = visual.bg.mix(normal.bg, 50).hex })
+	vim.api.nvim_set_hl(0, "TreeClimberSibling", { background = visual.bg.mix(normal.bg, 50).hex })
+	vim.api.nvim_set_hl(0, "TreeClimberParent", { background = visual.bg.mix(normal.bg, 50).hex })
+	vim.api.nvim_set_hl(0, "TreeClimberParentStart", { background = visual.bg.mix(normal.bg, 50).hex })
 end
 
 function M.setup_augroups()

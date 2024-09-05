@@ -1,6 +1,35 @@
 local clamp = require('nvim-treeclimber.math').clamp
 local round = require('nvim-treeclimber.math').round
 
+---@class HSLUV
+---@field hex string
+---@field h number
+---@field s number
+---@field l number
+---@field rotate fun(n: number): HSLUV
+---@field ro fun(n: number): HSLUV
+---@field saturate fun(n: number): HSLUV
+---@field sa fun(n: number): HSLUV
+---@field abs_saturate fun(n: number): HSLUV
+---@field abs_sa fun(n: number): HSLUV
+---@field desaturate fun(n: number): HSLUV
+---@field de fun(n: number): HSLUV
+---@field abs_desaturate fun(n: number): HSLUV
+---@field abs_de fun(n: number): HSLUV
+---@field lighten fun(n: number): HSLUV
+---@field li fun(n: number): HSLUV
+---@field abs_lighten fun(n: number): HSLUV
+---@field abs_li fun(n: number): HSLUV
+---@field darken fun(n: number): HSLUV
+---@field da fun(n: number): HSLUV
+---@field abs_darken fun(n: number): HSLUV
+---@field abs_da fun(n: number): HSLUV
+---@field mix fun(color: HSLUV, n: number): HSLUV
+---@field readable fun(): HSLUV
+---@field hue fun(n: number): HSLUV
+---@field saturation fun(n: number): HSLUV
+---@field lightness fun(n: number): HSLUV
+
 --
 -- HSL-like colour functions
 --
@@ -23,8 +52,10 @@ end
 -- return a new color with the key set to given value
 local function make_abs_fn(color, key)
   return function(abs_value)
-    if type(abs_value) ~= "number" then error("Must provide number to HSL modifiers", 0) end
-    local new_values = {h = color.h, s = color.s, l = color.l}
+    if type(abs_value) ~= "number" then
+      error("Must provide number to HSL modifiers", 0)
+    end
+    local new_values = { h = color.h, s = color.s, l = color.l }
     new_values[key] = new_values[key] + abs_value
     return new_values
   end
@@ -35,10 +66,12 @@ end
 -- return a new color with the key lerped by given value
 local function make_lerp_fn(color, key)
   return function(percent)
-    if type(percent) ~= "number" then error("Must provide number to HSL modifiers", 0) end
+    if type(percent) ~= "number" then
+      error("Must provide number to HSL modifiers", 0)
+    end
 
     -- we never modifiy the caller
-    local new_values = {h = color.h, s = color.s, l = color.l}
+    local new_values = { h = color.h, s = color.s, l = color.l }
     -- we can safely bounds all relative adjustments to 0, 100
     -- because you can't 'relatively rotate' hue
     local min, max = 0, 100
@@ -69,7 +102,9 @@ end
 -- (color) -> (n) -> {h, s lerp -n, l}
 local function op_desaturate(color)
   return function(percent)
-    if type(percent) ~= "number" then error("Must provide number to HSL modifiers", 0) end
+    if type(percent) ~= "number" then
+      error("Must provide number to HSL modifiers", 0)
+    end
     return make_lerp_fn(color, "s")(-percent)
   end
 end
@@ -77,7 +112,9 @@ end
 -- (color) -> (n) -> {h, s - n, l}
 local function op_abs_desaturate(color)
   return function(abs_value)
-    if type(abs_value) ~= "number" then error("Must provide number to HSL modifiers", 0) end
+    if type(abs_value) ~= "number" then
+      error("Must provide number to HSL modifiers", 0)
+    end
     return make_abs_fn(color, "s")(-abs_value)
   end
 end
@@ -95,7 +132,9 @@ end
 -- (color) -> (n) -> {h, s, l lerp -n}
 local function op_darken(color)
   return function(percent)
-    if type(percent) ~= "number" then error("Must provide number to HSL modifiers", 0) end
+    if type(percent) ~= "number" then
+      error("Must provide number to HSL modifiers", 0)
+    end
     return make_lerp_fn(color, "l")(-percent)
   end
 end
@@ -103,7 +142,9 @@ end
 -- (color) -> (n) -> {h, s, l - n}
 local function op_abs_darken(color)
   return function(abs_value)
-    if type(abs_value) ~= "number" then error("Must provide number to HSL modifiers", 0) end
+    if type(abs_value) ~= "number" then
+      error("Must provide number to HSL modifiers", 0)
+    end
     return make_abs_fn(color, "l")(-abs_value)
   end
 end
@@ -153,24 +194,30 @@ end
 -- (color) -> (n) -> {n, s, l}
 local function op_hue(color)
   return function(hue)
-    if type(hue) ~= "number" then error("Must provide number to HSL modifiers", 0) end
-    return {h = hue, s = color.s, l = color.l}
+    if type(hue) ~= "number" then
+      error("Must provide number to HSL modifiers", 0)
+    end
+    return { h = hue, s = color.s, l = color.l }
   end
 end
 
 -- (color) -> (n) -> {h, n, l}
 local function op_saturation(color)
   return function(saturation)
-    if type(saturation) ~= "number" then error("Must provide number to HSL modifiers", 0) end
-    return {h = color.h, s = saturation, l = color.l}
+    if type(saturation) ~= "number" then
+      error("Must provide number to HSL modifiers", 0)
+    end
+    return { h = color.h, s = saturation, l = color.l }
   end
 end
 
 -- (color) -> (n) -> {h, s, n}
 local function op_lightness(color)
   return function(lightness)
-    if type(lightness) ~= "number" then error("Must provide number to HSL modifiers", 0) end
-    return {h = color.h, s = color.s, l = lightness}
+    if type(lightness) ~= "number" then
+      error("Must provide number to HSL modifiers", 0)
+    end
+    return { h = color.h, s = color.s, l = lightness }
   end
 end
 
@@ -178,9 +225,9 @@ end
 local function op_readable(color)
   return function()
     if color.l >= 50 then
-      return {h = color.h, s = color.s, l = 0}
+      return { h = color.h, s = color.s, l = 0 }
     else
-      return {h = color.h, s = color.s, l = 100}
+      return { h = color.h, s = color.s, l = 100 }
     end
   end
 end
@@ -227,7 +274,7 @@ local function decorate_hsl_table(color, to_hex_fn)
       if key_name == "h" then return color.h end
       if key_name == "s" then return color.s end
       if key_name == "l" then return color.l end
-      if key_name == "hsl" then return {h = color.h, s = color.s, l = color.l} end
+      if key_name == "hsl" then return { h = color.h, s = color.s, l = color.l } end
       if key_name == "hex" then return to_hex_fn(color) end
       if key_name == "rgb" then
         local hex = to_hex_fn(color)
@@ -249,9 +296,9 @@ local function decorate_hsl_table(color, to_hex_fn)
         end
         ops = ops .. " h s l hex hsl"
         error("Invalid hsl operation: '"
-        .. key_name
-        .. "', valid operations:"
-        .. ops, 2)
+          .. key_name
+          .. "', valid operations:"
+          .. ops, 2)
       end
     end,
 
@@ -275,6 +322,11 @@ local function decorate_hsl_table(color, to_hex_fn)
   })
 end
 
+---@param h_or_hex number|string
+---@param s? number
+---@param l? number
+---@param type_fns table
+---@return HSLUV
 local M = function(h_or_hex, s, l, type_fns)
   assert(type_fns, "must provide type_fns")
   assert(type_fns.name, "must provide name() type_fn")
@@ -289,21 +341,21 @@ local M = function(h_or_hex, s, l, type_fns)
   if type(hex_str) == "string" then
     -- normalise
     local hex = "[abcdef0-9][abcdef0-9]"
-    local pat = "^#("..hex..")("..hex..")("..hex..")$"
+    local pat = "^#(" .. hex .. ")(" .. hex .. ")(" .. hex .. ")$"
     hex_str = string.lower(hex_str)
 
     -- smoke test
     assert(string.find(hex_str, pat) ~= nil,
-           "hex_to_rgb: invalid hex_str: " .. tostring(hex_str))
+      "hex_to_rgb: invalid hex_str: " .. tostring(hex_str))
 
-     hsl = type_fns.from_hex(hex_str)
+    hsl = type_fns.from_hex(hex_str)
   else
     if type(h) ~= "number" or
         type(s) ~= "number" or
         type(l) ~= "number" then
       error(type_fns.name() .. " expects (number, number, number) or (string)", 2)
     end
-    hsl = {h = h, s = s, l = l}
+    hsl = { h = h, s = s, l = l }
   end
 
   return decorate_hsl_table(hsl, type_fns.to_hex)
