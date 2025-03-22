@@ -21,37 +21,55 @@ else
 	vim.g.treeclimber_loaded = true
 end
 
+-- FIXME: If there's going to be a Stack class, it should probably subsume the logic
+-- below; currently, plug_history is just a table.
 --- @alias treeclimber.History Range4[]
 --- @type treeclimber.History
 local plug_history = {}
 
---- @param t table
-local function tbl_clear(t)
-	local count = #t
-	for i = 0, count do
-		t[i] = nil
-	end
-end
+-- Node Stack Logic: Push range (possibly corresponding to multiple nodes) on ascent; clear *entire*
+-- stack on any lateral movement that changes selection. Also, clear history on attempt to descend
+-- when the range at the top of the stack is *outside* the descended-from node.
+-- TODO: Consider advantages of associating a parent id with ranges pushed to the stack. This would
+-- allow us to be certain that a range had been pushed for a node or nodes at the target level (and
+-- not for a child or range of children from an even lower level). However, the extra complexity may
+-- not be worth it. Logic in api.node.shrink prevents descending more than one node at a time, and
+-- it currently ignores a pushed range that doesn't correspond exactly to a node or range of nodes
+-- at the target level.
 
--- Push range onto the stack (or overwrite top entry if overwrite == true).
+-- Push range onto the history stack (or overwrite top entry if overwrite == true).
 --- @param range Range4
 --- @param overwrite boolean?
 local function push_history(range, overwrite)
-	local new_value = range
-
 	if overwrite then
-		plug_history[1] = new_value
-		return
+		-- TODO: Can we assume overwritten element is sibling? Currently, we rely
+		-- on external plugin logic to guarantee this.
+		plug_history[#plug_history > 0 and #plug_history or 1] = range
 	else
 		-- Don't add redundant element.
 		local top = Stack.peek(plug_history)
-		if vim.deep_equal(top, new_value) then
+		if vim.deep_equal(top, range) then
 			return
 		end
+		Stack.push(plug_history, range)
 	end
+end
 
-	-- TODO: Consider appending, which would probably be more efficient.
-	table.insert(plug_history, new_value)
+-- Pop top element from the history stack and return it.
+---@return Range4
+local function pop_history()
+	return Stack.pop(plug_history)
+end
+
+-- Clear all elements from the history stack.
+local function clear_history()
+	plug_history = {}
+end
+
+-- Return number of elements in history stack.
+---@return integer
+local function history_size()
+	return #plug_history
 end
 
 local top_level_types = {
@@ -263,19 +281,11 @@ local function node_is_selected(node, range)
 	return is_visual_charwise() and node_has_range(node, range)
 end
 
----@deprecated use `api.buf.get_selection_range`
---- @return treeclimber.Pos, treeclimber.Pos
-local function get_selection_range()
-	local start = Pos.from_list(a.nvim_win_get_cursor(0)):to_ts()
-	local end_ = Pos:new(f.line("v"), f.col("v")):to_ts()
-	return start, end_
-end
-
 ---@return treeclimber.Range
 function api.buf.get_selection_range()
-	local from = Pos.from_list(a.nvim_win_get_cursor(0)):to_ts()
-	local to = Pos:new(f.line("v"), f.col("v")):to_ts()
-	return Range.new(from, to)
+	local from = a.nvim_win_get_cursor(0)
+	-- Note: Returned col index may not be multi-byte safe. (TODO)
+	return Range.from_visual(from[1], from[2], f.line("v"), f.col("v"))
 end
 
 ---Get the node that spans the range
@@ -301,6 +311,44 @@ local function get_covering_node(start, end_)
 	local root = api.buf.get_root()
 	local range = Range.new(start, end_)
 	return api.node.largest_named_descendant_for_range(root, range:to_list())
+end
+
+-- Start with the covering node, if the start and end match it's exactly
+-- then return it, otherwise find the slice of the node that most closesly
+-- matches the selection
+--- @param start treeclimber.Pos
+--- @param end_ treeclimber.Pos
+--- @return TSNode[]
+local function get_covering_nodes(start, end_)
+	local parent, innermost = get_covering_node(start, end_)
+
+	if parent == nil then
+		return {}
+	end
+
+	-- If outermost node is exact match, return it; otherwise, look for child node(s).
+	if Pos.eq(Pos:new(parent:end_()), end_) and Pos.eq(Pos:new(parent:start()), start) then
+		return { parent }
+	end
+
+	local nodes = {}
+
+	-- Decide which parent to use: innermost or outermost. Both are larger than the input range.
+	-- If innermost parent has no children, prefer the parent (though the choice probably
+	-- doesn't matter in that case).
+	if innermost:child_count() == 0 then
+		-- This handles the case of (eg) select_current_node from normal mode (such that input range is single char wide).
+		return { parent }
+	end
+	-- Loop over children of innermost parent, gathering the relevant subset.
+	for child in innermost:iter_children() do
+		if child:named() and Pos.gte(Pos:new(child:start()), start) and Pos.lte(Pos:new(child:end_()), end_) then
+			table.insert(nodes, child)
+		end
+	end
+
+	-- Note: If start/end_ is between children, fall back to parent.
+	return #nodes > 0 and nodes or { parent }
 end
 
 ---Get the node that spans the range
@@ -360,6 +408,7 @@ end
 --- @param end_ treeclimber.Pos
 local function is_selected_cursor_end(node, start, end_)
 	local sr, sc, er, ec = node:range()
+
 	return er == start.row and ec == (start.col + 1) and sr == end_.row and sc == (end_.col - 1)
 end
 
@@ -380,6 +429,10 @@ local function apply_decoration(node)
 	a.nvim_buf_clear_namespace(0, ns, 0, -1)
 
 	local function cb()
+		-- FIXME: expand gets stuck when...
+		-- 1. starting on variable name (mode) below
+		-- 2. starting on equal
+		-- TODO: Try removing the debug statements tomorrow...
 		vim.defer_fn(function()
 			local mode = a.nvim_get_mode()
 			if mode.blocking == false and mode.mode ~= "v" then
@@ -425,13 +478,14 @@ local function apply_decoration(node)
 end
 
 function api.select_current_node()
-	local start, end_ = get_selection_range()
+	local start, end_ = api.buf.get_selection_range():positions()
 	local node = get_covering_node(start, end_)
 
 	if node == nil then
 		return
 	end
 
+	clear_history()
 	apply_decoration(node)
 	visually_select_node(node)
 	resume_visual_charwise()
@@ -439,7 +493,7 @@ end
 
 function api.select_expand()
 	local range = api.buf.get_selection_range()
-	local node = api.buf.get_covering_node(range)
+	local node = get_covering_node(range:positions())
 
 	if not node then
 		return
@@ -454,10 +508,16 @@ function api.select_expand()
 		if not node then
 			return
 		end
+		push_history(range:to_list())
+	else
+		-- Expansion was performed by get_covering_node(). Push range iff it corresponds
+		-- exactly to a range of nodes (possibly 1).
+		local nodes = get_covering_nodes(range:positions())
+		if nodes and #nodes > 0 and Pos:new(nodes[1]:start()) == range.from
+			and Pos:new(nodes[#nodes]:end_()) == range.to then
+			push_history(range:to_list())
+		end
 	end
-
-	-- Push the range of *previously* selected nodes.
-	push_history(range:to_list())
 	apply_decoration(node)
 	visually_select_node(node)
 	resume_visual_charwise()
@@ -477,8 +537,9 @@ function api.select_shrink()
 
 	-- Get shrink target, which will be either a single child node, or a set of previously
 	-- selected children.
-	local nodes = api.node.shrink(node, plug_history)
+	local nodes = api.node.shrink(node)
 
+	-- Treat the single and multi-node cases differently.
 	if #nodes == 1 then
 		apply_decoration(nodes[1])
 		visually_select_node(nodes[1])
@@ -491,22 +552,23 @@ function api.select_shrink()
 end
 
 function api.select_top_level()
-	local start, end_ = get_selection_range()
-	local node = get_covering_node(start, end_)
+	local range = api.buf.get_selection_range()
+	local node = get_covering_node(range:positions())
 
 	-- Loop from current selection to top level, pushing a trail of ascended-from nodes as we go.
-	-- Note: If the starting selection differs from the covering node, push it first.
-	if node and not vim.deep_equal({node:range()}, {start.row, start.col, end_.row, end_.col})  then
-		push_history{start.row, start.col, end_.row, end_.col}
+	-- Note: If the starting selection differs from the covering node, push it before
+	-- beginning the ascent.
+	if node and not vim.deep_equal({node:range()}, range:to_list())  then
+		-- TODO: Decide whether we should push actual treeclimber.Range objects to
+		-- permit placing the cursor at the proper (start or end) side of the
+		-- selection on shrink.
+		push_history(range:to_list())
 	end
 	-- While current node has a parent (and current node isn't top level), push current and ascend.
-	while node and node:parent() do
+	while node and not top_level_types[node:type()] and node:parent() do
 		-- Push node before ascending.
 		push_history{node:range()}
 		node = node:parent()
-		if not node or top_level_types[node:type()] then
-			break
-		end
 	end
 
 	if node == nil then
@@ -518,22 +580,23 @@ function api.select_top_level()
 	resume_visual_charwise()
 end
 
+-- TODO: Use TSNode:extra() to skip comments (here and everywhere), but consider how best
+-- to make this configurable.
 function api.select_forward_end()
-	local start, end_ = get_selection_range()
-	local node = get_covering_node(start, end_)
+	local range = api.buf.get_selection_range()
+	local node = get_covering_node(range:positions())
+
+	if node and node_is_selected(node, range:to_list())
+		and range.backwards and node:next_named_sibling() then
+		-- Current node is already selected with cursor at end, so jump to next.
+		node = node:next_named_sibling()
+	end
 
 	if node == nil then
 		return
 	end
 
-	if is_selected_cursor_end(node, start, end_) and node:next_sibling() then
-		node = node:next_sibling()
-	end
-
-	if node == nil then
-		return
-	end
-
+	clear_history()
 	apply_decoration(node)
 	visual_select_node_end(node)
 	resume_visual_charwise()
@@ -541,32 +604,29 @@ end
 
 function api.select_backward()
 	local range = api.buf.get_selection_range()
-	local node = api.buf.get_covering_node(range)
+	local node = get_covering_node(range:positions())
 
 	if node == nil then
 		return
 	end
 
+	-- TODO: Update comment.
 	if node_is_selected(node, range:to_list()) and node:prev_named_sibling() then
 		node = node:prev_named_sibling()
-
-		if node == nil then
-			return
-		end
 	end
 
 	if node == nil then
 		return
 	end
 
-	push_history({node:range()}, true)
+	clear_history()
 	apply_decoration(node)
 	visually_select_node(node)
 	resume_visual_charwise()
 end
 
 function api.select_siblings_backward()
-	local start, end_ = get_selection_range()
+	local start, end_ = api.buf.get_selection_range():positions()
 	local node = get_covering_node(start, end_)
 
 	while node and node:prev_named_sibling() do
@@ -577,23 +637,25 @@ function api.select_siblings_backward()
 		return
 	end
 
+	clear_history()
 	apply_decoration(node)
 	visually_select_node(node)
 	resume_visual_charwise()
 end
 
 function api.select_siblings_forward()
-	local start, end_ = get_selection_range()
+	local start, end_ = api.buf.get_selection_range():positions()
 	local node = get_covering_node(start, end_)
 
-	while node and node:next_sibling() do
-		node = node:next_sibling()
+	while node and node:next_named_sibling() do
+		node = node:next_named_sibling()
 	end
 
 	if node == nil then
 		return
 	end
 
+	clear_history()
 	apply_decoration(node)
 	visually_select_node(node)
 	resume_visual_charwise()
@@ -601,7 +663,7 @@ end
 
 function api.select_forward()
 	local range = api.buf.get_selection_range()
-	local node = api.buf.get_covering_node(range)
+	local node = get_covering_node(range:positions())
 
 	if node == nil then
 		return
@@ -609,61 +671,20 @@ function api.select_forward()
 
 	if node_is_selected(node, range:to_list()) and node:next_named_sibling() then
 		node = node:next_named_sibling()
-
-		if node == nil then
-			return
-		end
 	end
 
 	if node == nil then
 		return
 	end
 
-	push_history({node:range()}, true)
+	clear_history()
 	apply_decoration(node)
 	visually_select_node(node)
 	resume_visual_charwise()
 end
 
--- Start with the covering node, if the start and end match it's exactly
--- then return it, otherwise find the slice of the node that most closesly
--- matches the selection
---- @param start treeclimber.Pos
---- @param end_ treeclimber.Pos
---- @return TSNode[]
-local function get_covering_nodes(start, end_)
-	local parent, innermost = get_covering_node(start, end_)
-
-	if parent == nil then
-		return {}
-	end
-
-	-- If outermost node is exact match, return it.
-	if Pos.eq(Pos:new(parent:end_()), end_) and Pos.eq(Pos:new(parent:start()), start) then
-		return { parent }
-	end
-
-	local nodes = {}
-
-	-- Decide which parent to use: innermost or outermost. Both are larger than the input range.
-	-- If innermost parent has no children, prefer the parent (though the choice probably
-	-- doesn't matter in that case).
-	if innermost:child_count() == 0 then
-		-- This handles the case of (eg) select_current_node from normal mode (such that input range is single char wide).
-		return { parent }
-	end
-	-- Loop over children of innermost parent, gathering the relevant subset.
-	for child in innermost:iter_children() do
-		if child:named() and Pos.gte(Pos:new(child:start()), start) and Pos.lte(Pos:new(child:end_()), end_) then
-			table.insert(nodes, child)
-		end
-	end
-
-	return nodes
-end
-
 function api.select_grow_forward()
-	local start, end_ = get_selection_range()
+	local start, end_ = api.buf.get_selection_range():positions()
 	local nodes = get_covering_nodes(start, end_)
 
 	if nodes and #nodes > 0 then
@@ -671,6 +692,7 @@ function api.select_grow_forward()
 		local enode = nodes[#nodes]
 		-- Design Decision: Skip unnamed siblings such as equal signs.
 		enode = enode:next_named_sibling() or enode
+		clear_history()
 		set_visual_start(snode)
 		set_visual_end(enode)
 		resume_visual_charwise()
@@ -678,13 +700,14 @@ function api.select_grow_forward()
 end
 
 function api.select_grow_backward()
-	local start, end_ = get_selection_range()
-	local nodes = get_covering_nodes(start, end_, true)
+	local start, end_ = api.buf.get_selection_range():positions()
+	local nodes = get_covering_nodes(start, end_)
 
 	if nodes and #nodes > 0 then
 		local snode = nodes[1]
 		local enode = nodes[#nodes]
 		snode = snode:prev_named_sibling() or snode
+		clear_history()
 		set_visual_start(snode)
 		set_visual_end(enode)
 		resume_visual_charwise()
@@ -721,13 +744,11 @@ end
 -- Note: To simplify caller logic, we always return an array of nodes, even when a range from the
 -- stack is not used (in which case, the target is invariably a single node).
 ---@param node TSNode
----@param history treeclimber.History
 ---@return TSNode[]
-function api.node.shrink(node, history)
+function api.node.shrink(node)
 	argcheck("treeclimber.api.node.shrink", 1, "userdata", node)
-	argcheck("treeclimber.api.node.shrink", 2, "table", history)
 
-	if #history > 0 then
+	if history_size() > 0 then
 		--- @type Range4
 		local descendant_range
 		--- @type boolean
@@ -738,10 +759,10 @@ function api.node.shrink(node, history)
 		-- Rationale:  To keep stack structure simple, we have it maintain history for only
 		-- one vertical path at a time.
 		repeat
-			descendant_range = Stack.pop(history)
+			descendant_range = pop_history()
 			contained = descendant_range and vim.treesitter.node_contains(node, descendant_range)
 			colocated = vim.deep_equal(descendant_range, { node:range() })
-		until #history == 0 or not contained or not colocated
+		until history_size() == 0 or not contained or not colocated
 		if contained and not colocated then
 			assert(
 				type(descendant_range) == "table" and #descendant_range == 4,
@@ -754,16 +775,22 @@ function api.node.shrink(node, history)
 			local nodes = get_covering_nodes(
 				Pos:new(descendant_range[1], descendant_range[2]),
 				Pos:new(descendant_range[3], descendant_range[4]))
-			-- This should always be true
-			assert(nodes and #nodes > 0, "Expected a node")
-			return nodes
+			-- Ignore empty node list (probably shouldn't happen) or list whose
+			-- collective range is the same as (or larger than) that of node from which
+			-- we're attempting to shrink.
+			if not nodes or #nodes == 0 then
+				-- TODO: Warn? As long as get_covering_nodes() falls back to parent,
+				-- this shouldn't happen.
+			elseif Pos:new(nodes[1]:start()) > Pos:new(node:start()) or Pos:new(nodes[#nodes]:end_()) < Pos:new(node:end_()) then
+				return nodes
+			end
 		end
 	end
 
 	-- Clear history.
 	-- Rationale: We didn't use a range from the stack, which means either the stack is empty or
 	-- it contains a different vertical path from the one we're attempting to descend.
-	tbl_clear(history)
+	clear_history()
 
 	---@type TSNode?
 	local next = node
@@ -849,8 +876,8 @@ end
 function api.highlight_external_definitions()
 	set_normal_mode()
 	resume_visual_charwise()
-	local start, end_ = get_selection_range()
-	local node = get_covering_node(start, end_)
+	local range = api.buf.get_selection_range()
+	local node = get_covering_node(range:positions())
 
 	local query = ts.query.parse(
 		vim.o.filetype,
