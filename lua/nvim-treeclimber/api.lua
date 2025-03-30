@@ -313,6 +313,52 @@ local function get_covering_node(start, end_)
 	return api.node.largest_named_descendant_for_range(root, range:to_list())
 end
 
+-- Accepts an ancestor node and a table of presumably descendant siblings and returns either the
+-- highest ancestor of the table nodes that's visually distinct from the input ancestor, else the
+-- input table itself, assuming the range it represents is smaller than the range of the input
+-- ancestor, else nil.
+---@param ancestor TSNode
+---@param nodes TSNode[]
+---@return TSNode[] | nil
+local function get_nearest_descendant_containing(ancestor, nodes)
+	---@type treeclimber.Range
+	local ancestor_range = Range.new4(ancestor:range())
+	---@type TSNode?
+	local node = nodes and #nodes > 0 and nodes[1] or nil
+
+	if not node then
+		-- Bad input
+		return nil
+	end
+	if #nodes > 1 and not ancestor_range:contains(
+		Range.new(Pos:new(nodes[1]:start()), Pos:new(nodes[#nodes]:end_()))) then
+		-- Input sequence of nodes is not fully (visibly) contained by ancestor, and is thus
+		-- not a valid return.
+		return nil
+	end
+	---@type TSNode?
+	local maybe
+	-- If here, we're guaranteed a non-empty set of nodes for return.
+	repeat
+		-- Tentatively advance, though we still may reject this candidate.
+		-- Note: node is non-null and will be updated only on acceptance.
+		maybe = node:parent()
+		if maybe then
+			local maybe_range = Range.new4(maybe:range())
+			if maybe ~= ancestor and ancestor_range:contains(maybe_range) then
+				-- Accept the candidate.
+				node = maybe
+			else
+				-- Ceiling reached.
+				break
+			end
+		end
+	until not maybe
+	-- Return highest node reached (in a table of one node) or the input table of nodes (if we
+	-- didn't ascend).
+	return node == nodes[1] and nodes or {node}
+end
+
 -- Start with the covering node, if the start and end match it's exactly
 -- then return it, otherwise find the slice of the node that most closesly
 -- matches the selection
@@ -485,6 +531,7 @@ function api.select_current_node()
 		return
 	end
 
+	-- Design Decision: select_current_node clears node stack.
 	clear_history()
 	apply_decoration(node)
 	visually_select_node(node)
@@ -527,23 +574,29 @@ function api.select_shrink()
 	-- Design Decision: This function is designed for use with a single starting node, but
 	-- nothing precludes its use when multiple nodes are selected; thus, for now, treat
 	-- execution with multiple nodes selected as a shrink from the containing parent.
+	-- Note: In rare cases, this could result in a descent to already selected children, but it
+	-- will self-correct (since descended-to range will be popped from stack), and it will
+	-- happen only when user performs certain unlikely sequences outside treeclimber.
 	local range = api.buf.get_selection_range()
-	local root = api.buf.get_root()
-	local node = api.node.largest_named_descendant_for_range(root, range:to_list())
+	local nodes = get_covering_nodes(range.from, range.to)
 
-	if not node then
+	--local root = api.buf.get_root()
+	--local node = api.node.largest_named_descendant_for_range(root, range:to_list())
+
+
+	if not nodes or #nodes == 0 then
 		return
 	end
 
 	-- Get shrink target, which will be either a single child node, or a set of previously
 	-- selected children.
-	local nodes = api.node.shrink(node)
+	nodes = api.node.shrink(nodes)
 
 	-- Treat the single and multi-node cases differently.
 	if #nodes == 1 then
 		apply_decoration(nodes[1])
 		visually_select_node(nodes[1])
-	else
+	elseif #nodes > 1 then
 		set_visual_start(nodes[1])
 		set_visual_end(nodes[#nodes])
 	end
@@ -692,7 +745,7 @@ function api.select_grow_forward()
 		local enode = nodes[#nodes]
 		-- Design Decision: Skip unnamed siblings such as equal signs.
 		enode = enode:next_named_sibling() or enode
-		clear_history()
+		-- Design Decision: Don't clear history, since growing selection doesn't invalidate existing path.
 		set_visual_start(snode)
 		set_visual_end(enode)
 		resume_visual_charwise()
@@ -707,7 +760,7 @@ function api.select_grow_backward()
 		local snode = nodes[1]
 		local enode = nodes[#nodes]
 		snode = snode:prev_named_sibling() or snode
-		clear_history()
+		-- Design Decision: Don't clear history, since growing selection doesn't invalidate existing path.
 		set_visual_start(snode)
 		set_visual_end(enode)
 		resume_visual_charwise()
@@ -739,74 +792,138 @@ function api.node.grow(node)
 	return ancestor or next
 end
 
--- Return list of nodes representing the target of the shrink. Targets corresponding to a range
--- previously pushed onto the node stack may span multiple nodes.
--- Note: To simplify caller logic, we always return an array of nodes, even when a range from the
--- stack is not used (in which case, the target is invariably a single node).
----@param node TSNode
----@return TSNode[]
-function api.node.shrink(node)
-	argcheck("treeclimber.api.node.shrink", 1, "userdata", node)
-
-	if history_size() > 0 then
-		--- @type Range4
-		local descendant_range
-		--- @type boolean
-		local colocated, contained
-
-		-- Check stack for a range that's within and not co-located with current node.
-		-- Short-circuit and clear stack if popped range is outside provided node.
-		-- Rationale:  To keep stack structure simple, we have it maintain history for only
-		-- one vertical path at a time.
-		repeat
-			descendant_range = pop_history()
-			contained = descendant_range and vim.treesitter.node_contains(node, descendant_range)
-			colocated = vim.deep_equal(descendant_range, { node:range() })
-		until history_size() == 0 or not contained or not colocated
-		if contained and not colocated then
-			assert(
-				type(descendant_range) == "table" and #descendant_range == 4,
-				string.format("Expected a Range4, got %s", type(descendant_range))
-			)
-
-			-- Note: Docs specify that a shrink should "undo previous expand". We
-			-- accomplish this by pushing (potentially) multi-node *ranges* to the stack
-			-- on ascent and using get_covering_nodes() here on the popped range...
-			local nodes = get_covering_nodes(
-				Pos:new(descendant_range[1], descendant_range[2]),
-				Pos:new(descendant_range[3], descendant_range[4]))
-			-- Ignore empty node list (probably shouldn't happen) or list whose
-			-- collective range is the same as (or larger than) that of node from which
-			-- we're attempting to shrink.
-			if not nodes or #nodes == 0 then
-				-- TODO: Warn? As long as get_covering_nodes() falls back to parent,
-				-- this shouldn't happen.
-			elseif Pos:new(nodes[1]:start()) > Pos:new(node:start()) or Pos:new(nodes[#nodes]:end_()) < Pos:new(node:end_()) then
-				return nodes
+---@param nodes TSNode[]
+---@param range treeclimber.Range
+---@return TSNode | nil
+local function get_node_containing_range(nodes, range)
+	if Range.from_nodes(nodes[1], nodes[#nodes]):covers(range) then
+		for _, n in ipairs(nodes) do
+			if Range.from_node(n):covers(range) then
+				return n
 			end
 		end
 	end
+	return nil
+end
 
-	-- Clear history.
-	-- Rationale: We didn't use a range from the stack, which means either the stack is empty or
-	-- it contains a different vertical path from the one we're attempting to descend.
+-- Helper function for api.node.shrink, which uses node stack to try to find a shrink target,
+-- returning either a table of target nodes or nil.
+---@param anodes TSNode[]
+---@return TSNode[] | nil
+local function try_shrink_from_history(anodes)
+	---@type treeclimber.Range # ancestor range.
+	local arange = Range.from_nodes(anodes[1], anodes[#anodes])
+
+	if history_size() > 0 then
+		-- Check stack for a range that's visibly contained by current node(s).
+		-- Short-circuit and clear stack if we encounter a range that's outside provided node(s).
+		-- Rationale: To keep stack structure simple, we have it maintain history for only
+		-- one vertical path at a time.
+		---@type treeclimber.Range
+		local drange -- descendant range
+		---@type TSNode[] # descendant nodes
+		local dnodes
+		---@type boolean # loop conditions
+		local contained, overlapping
+		repeat
+			local drange4 = pop_history()
+			-- TODO: Should we assert here, or just let the if below discard invalid stack entries?
+			assert(
+				type(drange4) == "table" and #drange4 == 4,
+				string.format("Expected a Range4, got %s", type(drange4))
+			)
+			if drange4 then
+				drange = Range.new4(unpack(drange4))
+				-- Get set of nodes corresponding precisely to popped range.
+				-- Note: Docs specify that a shrink should "undo previous expand",
+				-- which requires us to handle multi-node shrink targets.
+				dnodes = get_covering_nodes(drange.from, drange.to)
+				if dnodes then
+					-- Adjust the popped range to match dnodes.
+					drange = Range.from_nodes(dnodes[1], dnodes[#dnodes])
+					-- Design Decision: If stack contains a range representing a
+					-- strict subset of the currently selected nodes, return it.
+					if arange:contains(drange) and dnodes[1]:parent() == anodes[1]:parent() then
+						return dnodes
+					end
+					contained = Range.contains(arange, drange)
+					overlapping = contained or arange:overlaps(drange)
+				end
+			end
+		until history_size() == 0 or not overlapping or contained
+		if contained then
+			-- The logic below ensures that if user manually (apart from treeclimber)
+			-- moves cursor higher in the tree, then performs a shrink not preceded by
+			-- select_current() (which currently clears stack), descent will follow the
+			-- nodes that would have been pushed to the stack if he'd ascended normally
+			-- using treeclimber expand.
+			-- Arrival here implies dnodes is not a strict subset of anodes, and thus
+			-- must be wholly *within* one of anodes. Find out which...
+			local node = get_node_containing_range(anodes, drange)
+			if node then
+				-- Get set of nodes that lies no more than one level below node:
+				-- either the original nodes table or an ancestor between node and
+				-- nodes.
+				dnodes = get_nearest_descendant_containing(node, dnodes) or {}
+				if dnodes and #dnodes > 0 then
+					-- If the adjusted range is larger than the popped range,
+					-- re-push the latter to support subsequent shrink.
+					local adj_range = Range.from_nodes(dnodes[1], dnodes[#dnodes])
+					if adj_range:contains(drange) then
+						push_history(drange:to_list())
+					end
+					return dnodes
+				end
+			end
+		end
+	end
+	return nil
+end
+
+-- Return table of nodes representing the target of the shrink, which could be either a single node
+-- or a sequence of nodes corresponding to a range previously pushed to the stack.
+-- Note: To simplify caller logic, we always return a table of nodes, even when a range from the
+-- stack is not used ({node}) or no target exists ({}).
+---@param anodes TSNode[]
+---@return TSNode[]
+function api.node.shrink(anodes)
+	argcheck("treeclimber.api.node.shrink", 1, "table", anodes)
+
+	-- First try to determine target using node stack.
+	local nodes = try_shrink_from_history(anodes)
+	if nodes then return nodes end
+
+	-- We didn't use a range from the stack, which means either the stack is empty or it its top
+	-- entry is not a valid shrink target.
 	clear_history()
 
-	---@type TSNode?
-	local next = node
-
-	local range = Range.from_node(node)
-
-	-- Descend by first child, looking for first node that is not co-located with its parent *or*
-	-- has no named children.
-	-- Note: If we can't find non co-located node, just return lowest named node, even
-	-- if it's the starting node.
-	while next and api.node.has_range(next, range) and next:named_child_count() > 0 do
-		next = next:named_child(0)
+	if #anodes > 1 then
+		-- Design Decision: Shrinking from a multi-node selection selects first selected
+		-- node.
+		return {anodes[1]}
 	end
 
-	-- Return array containing a single node.
-	return { next }
+	-- Starting from single node.
+	local node = anodes[1]
+	local range = Range.from_node(node)
+
+	-- Descend by first child, looking for first named node that is visibly within its parent.
+	-- If we hit leaf without encountering such a node, just keep the starting node.
+	---@type TSNode?
+	local next = node
+	repeat
+		next = next and next:named_child(0)
+		if next then
+			-- Is this child visibly within?
+			if range:contains(Range.from_node(next)) then
+				node = next
+				break
+			end
+		end
+	until not next
+
+	-- Return table containing a single node.
+	return { node }
 end
 
 function api.draw_boundary()

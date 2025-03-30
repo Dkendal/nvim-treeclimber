@@ -59,7 +59,24 @@ end
 ---@param b treeclimber.Range
 ---@return boolean
 function Range.covers(a, b)
-	return Pos.lte(a[1], b[1]) and Pos.gte(a[2], b[2])
+	return a.from <= b.from and a.to >= b.to
+end
+
+-- A (visibly) contains B
+---@param a treeclimber.Range
+---@param b treeclimber.Range
+---@return boolean
+function Range.contains(a, b)
+	return a.from < b.from and a.to >= b.to
+		or a.from <= b.from and a.to > b.to
+end
+
+-- A overlaps B
+---@param a treeclimber.Range
+---@param b treeclimber.Range
+---@return boolean
+function Range.overlaps(a, b)
+	return not (a.to <= b.from or a.from >= b.to)
 end
 
 -- TODO: Rethink the order methods in light of backwards range support.
@@ -106,6 +123,14 @@ end
 function Range.from_node(node)
 	return Range.new4(node:range())
 end
+
+---@param snode TSNode
+---@param enode TSNode
+---@return treeclimber.Range
+function Range.from_nodes(snode, enode)
+	return Range.new(Pos:new(snode:start()), Pos:new(enode:end_()))
+end
+
 
 -- Accept a range of the following form...
 --   nvim_win_get_cursor(0)[1], nvim_win_get_cursor(0)[2], line('v'), col('v')
