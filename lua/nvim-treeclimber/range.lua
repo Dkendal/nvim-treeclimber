@@ -118,19 +118,51 @@ function Range.positions(range)
 	return range.from, range.to
 end
 
----@param node TSNode
----@return treeclimber.Range
-function Range.from_node(node)
-	return Range.new4(node:range())
+-- Return invocant range converted from TSNode [0,0) to Vim [1,0] indexing.
+---@return treeclimber.Range # range using Vim [1,0] indexing
+function Range:to_vim()
+	return Range.new(self.from:to_vim(), self.to:to_vim_end())
 end
 
+-- TODO: Decide whether to keep the optional to_vim argument now that we have to_vim() method.
+---@param node TSNode
+---@param to_vim boolean? # convert from Treesitter [0,0) to Vim [1,0] indexing.
+---@return treeclimber.Range
+function Range.from_node(node, to_vim)
+	local range = Range.new4(node:range())
+	return to_vim and range:to_vim() or range
+end
+
+-- TODO: Decide whether to keep the optional to_vim argument now that we have to_vim() method.
 ---@param snode TSNode
 ---@param enode TSNode
+---@param to_vim boolean? # convert from Treesitter [0,0) to vim [1,0] indexing.
 ---@return treeclimber.Range
-function Range.from_nodes(snode, enode)
-	return Range.new(Pos:new(snode:start()), Pos:new(enode:end_()))
+function Range.from_nodes(snode, enode, to_vim)
+	local range = Range.new(Pos:new(snode:start()), Pos:new(enode:end_()))
+	return to_vim and range:to_vim() or range
 end
 
+-- Return either the invocant Range or an adjusted copy whose extents are fully within the current
+-- buffer.
+-- Rationale: A TSNode representing (eg) a "chunk" for the entire buffer may have an end_() line
+-- just *past* the last physical buffer line. This method simply pulls the end of such ranges back
+-- to the col just past the end of the last line of the buffer.
+---@param self treeclimber.Range # assumed to use unadjusted [0,0) TSNode indexing.
+---@return treeclimber.Range
+function Range:buf_limited()
+	local eline = vim.fn.line('$')
+	-- Design Decision: Check col to err on the side of not making a spurious adjustment.
+	-- Rationale: In the special case for which this is designed, treesitter always sets col==0.
+	if self.to.row >= eline and self.to.col == 0 then
+		-- Change to just past end of last line
+		local ecol = vim.fn.col({eline, '$'})
+		-- Note: returned Range keeps TSNode [0,0) indexing.
+		return Range.new(self.from, Pos:new(eline - 1, ecol - 1))
+	end
+	-- No fixup needed
+	return self
+end
 
 -- Accept a range of the following form...
 --   nvim_win_get_cursor(0)[1], nvim_win_get_cursor(0)[2], line('v'), col('v')
@@ -149,7 +181,6 @@ function Range.from_visual(sr, sc, er, ec)
 		sc, ec = ec - 1, sc + 1
 		backwards = true
 	end
-	local r = Range.new4(sr-1, sc, er-1, ec, backwards)
 	-- Convert to treesitter line indexing.
 	return Range.new4(sr-1, sc, er-1, ec, backwards)
 end

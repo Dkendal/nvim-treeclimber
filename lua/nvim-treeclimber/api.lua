@@ -27,6 +27,27 @@ end
 --- @type treeclimber.History
 local plug_history = {}
 
+-- Return nil if we're not in any visual mode, else a string indicating which visual mode.
+---@return "v" | "V" | "\22" | nil
+local function in_any_visual_mode()
+	local mode = f.mode()
+	return mode:match('^[vV]') or string.match(mode,
+		a.nvim_replace_termcodes("^<C-V>", true, false, true))
+end
+
+-- Simulate pressing of <esc>
+local function do_escape()
+	vim.cmd.normal { a.nvim_replace_termcodes("<esc>", true, false, true), bang = true }
+end
+
+-- Ensure we're in Normal mode, pressing <esc> only if necessary.
+-- Rationale: Avoid unnecessary beeps.
+local function ensure_normal_mode()
+	if in_any_visual_mode() then
+		do_escape()
+	end
+end
+
 -- Node Stack Logic: Push range (possibly corresponding to multiple nodes) on ascent; clear *entire*
 -- stack on any lateral movement that changes selection. Also, clear history on attempt to descend
 -- when the range at the top of the stack is *outside* the descended-from node.
@@ -204,41 +225,42 @@ function api.in_temp_win(name, lines)
 	end)
 end
 
---- Changes the > mark to the start of the node
---- @param node TSNode
-local function set_visual_start(node)
-	local start = Pos:new(node:start()):to_vim()
-	a.nvim_buf_set_mark(0, ">", start.row, start.col, {})
+-- Visually select the input treeclimber Range.
+---@param range treeclimber.Range # TSNode with [0,0) indexing
+---@param reverse boolean? # leave cursor at end of range
+local function visually_select_range(range, reverse)
+	-- Convert range from TSNode [0,0) to Vim [1,0] indexing and ensure range is entirely within current
+	-- buffer. (See note on buf_limited().)
+	range = range:buf_limited():to_vim()
+	-- Ensure we're not still in some sort of visual mode.
+	ensure_normal_mode()
+	-- Move to end of node.
+	-- Rationale: Select from end to start to leave cursor at start (the common case).
+	vim.api.nvim_win_set_cursor(0, {range.to:values()})
+	-- Start visual mode.
+	vim.cmd.normal "v"
+	-- Move to start of node.
+	vim.api.nvim_win_set_cursor(0, {range.from:values()})
+
+	if reverse then
+		-- Leave cursor at end of selection.
+		vim.cmd.normal "o"
+	end
+	assert(vim.fn.mode() == "v", "Failed to resume visual mode: " .. f.mode())
 end
 
---- Changes the < mark to the start of the node
---- @param node TSNode
-local function set_visual_end(node)
-	local end_ = Pos:new(node:end_()):to_vim()
-
-	local el = math.min(end_.row, f.line("$"))
-	local ec = math.max(end_.col - 1, 0)
-
-	a.nvim_buf_set_mark(0, "<", el, ec, {})
+-- Convenience function to select a range of nodes
+---@param nodes TSNode[]
+---@param reverse boolean?
+local function visually_select_nodes(nodes, reverse)
+	visually_select_range(Range.from_nodes(nodes[1], nodes[#nodes]), reverse)
 end
 
---- Changes the > and < mark to match the node's text region
---- @param node TSNode
-local function visually_select_node(node)
-	set_visual_start(node)
-	set_visual_end(node)
-end
-
---- @param node TSNode
-local function visual_select_node_end(node)
-	local start = Pos:new(node:start()):to_vim()
-	local end_ = Pos:new(node:end_()):to_vim()
-
-	local el = math.min(end_.row, f.line("$"))
-	local ec = math.max(end_.col - 1, 0)
-
-	a.nvim_buf_set_mark(0, "<", start.row, start.col, {})
-	a.nvim_buf_set_mark(0, ">", el, ec, {})
+-- Convenience function to select a single node
+---@param node TSNode
+---@param reverse boolean?
+local function visually_select_node(node, reverse)
+	visually_select_range(Range.from_node(node), reverse)
 end
 
 --- Vim is currently in visual charwise mode
@@ -247,7 +269,16 @@ local function is_visual_charwise()
 	return vim.api.nvim_get_mode().mode == "v"
 end
 
+-- FIXME: This function is broken. It's currently used only by highlight_external_definitions(),
+-- which I'm not convinced really needs it. The problem is that it doesn't properly account for all
+-- the idiosyncrasies of vim.fn.visualmode(), which behaves differently when visual mode is
+-- currently active (which it may be when this function is called). To further complicate matters,
+-- the visual marks were being adjusted with visual mode active, just before this function was
+-- called. To complicate matters even further, the normal mode gv was somehow being "eaten" by the
+-- very popular 'which-key' plugin, resulting in a fatal error from the assert().
+-- Bottom Line: This is not the most straightforward way to perform the desired selection.
 local function resume_visual_charwise()
+
 	local visualmode = f.visualmode()
 	if ({ ["v"] = true, [""] = true })[visualmode] then
 		-- Issue: which-key's ModeChanged logic interferes with the transition to
@@ -257,12 +288,12 @@ local function resume_visual_charwise()
 		-- TODO: Figure out better workaround, but a *lot* of Neovimmers use
 		-- which-key, so the workaround is probably justified.
 		vim.cmd.normal("gv")
-		vim.cmd.normal("gv")
 	elseif ({ ["V"] = true, ["\22"] = true })[visualmode] then
 		-- 22 is the unicode decimal representation of <C-V>
 		vim.cmd.normal("gvv")
 	end
 	assert(vim.fn.mode() == "v", "Failed to resume visual mode")
+
 end
 
 --- @param node TSNode
@@ -281,6 +312,11 @@ local function node_is_selected(node, range)
 	return is_visual_charwise() and node_has_range(node, range)
 end
 
+-- TODO: Consider refactoring to ensure more consistent behavior between linewise and characterwise
+-- visual modes.
+-- Rationale: The use of line("v")/col("v") in this function makes sense for characterwise visual
+-- mode, but can produce unexpected results in linewise visual mode: e.g., a single line selection
+-- tends to return a zero-width selection in linewise visual mode.
 ---@return treeclimber.Range
 function api.buf.get_selection_range()
 	local from = a.nvim_win_get_cursor(0)
@@ -535,9 +571,9 @@ function api.select_current_node()
 	clear_history()
 	apply_decoration(node)
 	visually_select_node(node)
-	resume_visual_charwise()
 end
 
+-- FIXME: Looks like maybe we're getting a nil when we try to climb too high!
 function api.select_expand()
 	local range = api.buf.get_selection_range()
 	local node = get_covering_node(range:positions())
@@ -567,7 +603,6 @@ function api.select_expand()
 	end
 	apply_decoration(node)
 	visually_select_node(node)
-	resume_visual_charwise()
 end
 
 function api.select_shrink()
@@ -597,10 +632,8 @@ function api.select_shrink()
 		apply_decoration(nodes[1])
 		visually_select_node(nodes[1])
 	elseif #nodes > 1 then
-		set_visual_start(nodes[1])
-		set_visual_end(nodes[#nodes])
+		visually_select_nodes(nodes)
 	end
-	resume_visual_charwise()
 
 end
 
@@ -630,7 +663,6 @@ function api.select_top_level()
 
 	apply_decoration(node)
 	visually_select_node(node)
-	resume_visual_charwise()
 end
 
 -- TODO: Use TSNode:extra() to skip comments (here and everywhere), but consider how best
@@ -651,8 +683,7 @@ function api.select_forward_end()
 
 	clear_history()
 	apply_decoration(node)
-	visual_select_node_end(node)
-	resume_visual_charwise()
+	visually_select_node(node, true)
 end
 
 function api.select_backward()
@@ -675,7 +706,6 @@ function api.select_backward()
 	clear_history()
 	apply_decoration(node)
 	visually_select_node(node)
-	resume_visual_charwise()
 end
 
 function api.select_siblings_backward()
@@ -693,9 +723,11 @@ function api.select_siblings_backward()
 	clear_history()
 	apply_decoration(node)
 	visually_select_node(node)
-	resume_visual_charwise()
 end
 
+-- TODO: Consider whether it would be better to select first or last sibling *at same level* as
+-- multiply-selected nodes. (Current logic will select first or last sibling of parent when multiple
+-- nodes are selected.)
 function api.select_siblings_forward()
 	local start, end_ = api.buf.get_selection_range():positions()
 	local node = get_covering_node(start, end_)
@@ -711,7 +743,6 @@ function api.select_siblings_forward()
 	clear_history()
 	apply_decoration(node)
 	visually_select_node(node)
-	resume_visual_charwise()
 end
 
 function api.select_forward()
@@ -733,7 +764,6 @@ function api.select_forward()
 	clear_history()
 	apply_decoration(node)
 	visually_select_node(node)
-	resume_visual_charwise()
 end
 
 function api.select_grow_forward()
@@ -746,9 +776,7 @@ function api.select_grow_forward()
 		-- Design Decision: Skip unnamed siblings such as equal signs.
 		enode = enode:next_named_sibling() or enode
 		-- Design Decision: Don't clear history, since growing selection doesn't invalidate existing path.
-		set_visual_start(snode)
-		set_visual_end(enode)
-		resume_visual_charwise()
+		visually_select_range(Range.from_nodes(snode, enode))
 	end
 end
 
@@ -761,9 +789,7 @@ function api.select_grow_backward()
 		local enode = nodes[#nodes]
 		snode = snode:prev_named_sibling() or snode
 		-- Design Decision: Don't clear history, since growing selection doesn't invalidate existing path.
-		set_visual_start(snode)
-		set_visual_end(enode)
-		resume_visual_charwise()
+		visually_select_range(Range.from_nodes(snode, enode))
 	end
 end
 
@@ -954,10 +980,6 @@ function api.draw_boundary()
 	end
 end
 
-local function set_normal_mode()
-	a.nvim_feedkeys(a.nvim_replace_termcodes("<esc>", true, false, true), "n", false)
-end
-
 local diff_ring = RingBuffer.new(2)
 
 --- Diff two selections using difft in a new window.
@@ -991,7 +1013,9 @@ end
 -- Get the node that is currently selected, then highlight all identifiers that
 -- are not defined within the current scope.
 function api.highlight_external_definitions()
-	set_normal_mode()
+	-- TODO: If the purpose of this to ensure there's a current selection, not sure it's needed,
+	-- since comment says "currently selected".
+	do_escape()
 	resume_visual_charwise()
 	local range = api.buf.get_selection_range()
 	local node = get_covering_node(range:positions())

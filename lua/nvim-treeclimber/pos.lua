@@ -79,10 +79,15 @@ function Pos:to_ts()
 end
 
 -- Convert 0 indexed row to 1 indexed
--- Tree-sitter treeclimber.Pos -> Vim treeclimber.Pos
 --- @return treeclimber.Pos
 function Pos:to_vim()
 	return Pos:new(self.row + 1, self.col)
+end
+
+-- Convert TSNode end_() position ((0,0) exclusive-end) to vim ((1,0) inclusive-end)
+--- @return treeclimber.Pos
+function Pos:to_vim_end()
+	return Pos:new(self.row + 1, self.col - 1)
 end
 
 --- @param other treeclimber.Pos
