@@ -38,6 +38,11 @@
             "unused": "Error"
         },
         "severity": {
+            "missing-fields": "Error!",
+            "undefined-field": "Error!",
+            "return-type-mismatch": "Error!",
+            "unreachable-code": "Error!",
+            "need-check-nil": "Error!",
             "redefined-local": "Warning!"
         },
         "unusedLocalExclude": [
@@ -45,10 +50,12 @@
         ]
     },
     "type": {
+        "checkTableShape": true,
         "castNumberToInteger": false,
         "weakNilCheck": false,
         "inferParamType": false,
-        "weakUnionCheck": false
+        "weakUnionCheck": false,
+        "inferReturnType": true
     },
     "hint.enable": true,
     "semantic.variable": true
