@@ -615,8 +615,6 @@ function api.select_shrink()
 	local range = api.buf.get_selection_range()
 	local nodes = get_covering_nodes(range.from, range.to)
 
-	--local root = api.buf.get_root()
-	--local node = api.node.largest_named_descendant_for_range(root, range:to_list())
 
 
 	if not nodes or #nodes == 0 then
