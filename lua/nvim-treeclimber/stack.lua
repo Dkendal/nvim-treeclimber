@@ -10,7 +10,8 @@ end
 ---@param self `T`[]
 ---@return `T` # The item popped from the stack
 function Stack:pop()
-	return table.remove(self)
+	-- Note: table.remove on empty table does not return nil.
+	return table.remove(self) or nil
 end
 
 ---@param self `T`[]
