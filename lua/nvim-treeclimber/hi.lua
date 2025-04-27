@@ -49,6 +49,10 @@ end
 
 M.HSLUVHighlight = {}
 
+-- Argument to the 'highlights' callback
+---@alias HSLUVHighlights
+---| {normal: HSLUVHighlight, visual: HSLUVHighlight}
+
 ---@param hl Highlight
 ---@return HSLUVHighlight
 function M.HSLUVHighlight:new(hl)
