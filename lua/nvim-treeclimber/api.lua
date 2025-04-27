@@ -1,11 +1,15 @@
 local ts = vim.treesitter
 local f = vim.fn
 local a = vim.api
+local Config = require('nvim-treeclimber.config')
 local Pos = require("nvim-treeclimber.pos")
 local Range = require("nvim-treeclimber.range")
 local Stack = require("nvim-treeclimber.stack")
 local RingBuffer = require("nvim-treeclimber.ring_buffer")
 local argcheck = require("nvim-treeclimber.typecheck").argcheck
+
+-- TODO: Remove this once an approach has been finalized.
+local CFG_USE_MODE_CHANGED_EVENT = true
 
 local api = {}
 api.node = {}
@@ -27,10 +31,12 @@ end
 --- @type treeclimber.History
 local plug_history = {}
 
--- Return nil if we're not in any visual mode, else a string indicating which visual mode.
+-- Return nil if provided mode string (default mode()) does not represent any visual mode, else a
+-- string indicating which visual mode.
+---@param mode? string
 ---@return "v" | "V" | "\22" | nil
-local function in_any_visual_mode()
-	local mode = f.mode()
+local function in_any_visual_mode(mode)
+	mode = mode or f.mode()
 	return mode:match('^[vV]') or string.match(mode,
 		a.nvim_replace_termcodes("^<C-V>", true, false, true))
 end
@@ -59,7 +65,9 @@ end
 -- at the target level.
 
 -- Push range onto the history stack (or overwrite top entry if overwrite == true).
---- @param range Range4
+-- Note: Changed type of range from Range4 to 4-tuple, since the type annotation system complains
+-- when the Range4 returned by node:range() is passed to push_history().
+--- @param range [integer, integer, integer, integer]
 --- @param overwrite boolean?
 local function push_history(range, overwrite)
 	if overwrite then
@@ -467,94 +475,231 @@ function api.node.largest_named_descendant_for_range(node, range)
 	return prev, innermost
 end
 
--- Get a node above this one that would grow the selection
+-- Get a node above this one that would grow the selection, returning the outermost of multiple
+-- colocated nodes.
 ---@param node TSNode
----@param range treeclimber.Range
 ---@return TSNode
-function api.get_larger_ancestor(node, range)
+function api.get_larger_ancestor(node)
+	---@type treeclimber.Range
+	local range = Range.from_node(node)
+	---@type treeclimber.Range
+	local next_range
 	---@type TSNode?
-	local acc = node
-	local prev = node
+	local next
+	---@type integer Number of times range has increased
+	local inc_cnt = 0
+	-- Logic: Attempt to expand twice, taking the last node accepted *before* the second
+	-- expansion.
+	repeat
+		next = node:parent()
+		if next then
+			next_range = Range.from_node(next)
+			if next_range ~= range then
+				-- Range increase has occurred!
+				inc_cnt = inc_cnt + 1
+				if inc_cnt > 1 then
+					-- On second increase, break without updating node.
+					break
+				end
+				range = next_range
+			end
+			-- Save the best candidate so far.
+			node = next
+		end
+	until not next
+	return node
+end
 
-	while acc and api.node.has_range(acc, range) do
-		prev = acc
-		acc = acc:parent()
+---@return {Selection: vim.api.keyset.keymap,
+---         SiblingStart: vim.api.keyset.keymap,
+---         Sibling: vim.api.keyset.keymap,
+---         Parent: vim.api.keyset.keymap,
+---         ParentStart: vim.api.keyset.keymap}
+local function get_active_highlights()
+	return vim.iter(vim.tbl_keys(Config:get_default("display.regions.highlights")))
+		:map(function(k) return {k, a.nvim_get_hl(0, {name = k})} end)
+		:filter(function(kv) return not vim.tbl_isempty(kv[2]) end)
+		:fold({}, function(acc, kv) acc[kv[1]] = kv[2]; return acc end)
+
+end
+
+
+-- Clear any leftover extmarks from our namespace and register callback to clear the ones we're
+-- about to create when they're no longer needed.
+local function clear_namespace()
+	a.nvim_buf_clear_namespace(0, ns, 0, -1)
+
+	if not CFG_USE_MODE_CHANGED_EVENT then
+		local function cb()
+			vim.defer_fn(function()
+				local mode = a.nvim_get_mode()
+				if mode.blocking == false and mode.mode ~= "v" then
+					a.nvim_buf_clear_namespace(0, ns, 0, -1)
+				else
+					cb()
+				end
+			end, 500)
+		end
+
+		cb()
+	else
+		-- Note: The only drawback to this approach is that, because of the
+		-- ensure_normal_mode() call in visually_select_range(), it will cancel old and
+		-- create new autocommand on each treeclimber traversal.
+		a.nvim_create_autocmd({"ModeChanged"}, {
+			-- Design Decision: Could use explicit pattern since we know we should be in visual
+			-- mode, but the match in the callback is more conservative.
+			--pattern = "v:*",
+			-- Design Decision: Returning true from callback to delete autocmd after
+			-- match succeeds is safer.
+			--once = true,
+			callback = function(t)
+				-- Get the second component of the event string (current mode).
+				if f.split(t.match, ":")[2] ~= "v" then
+					a.nvim_buf_clear_namespace(0, ns, 0, -1)
+					-- Return true to delete autocommand.
+					return true
+				end
+			end,
+		})
 	end
-
-	return acc or prev
 end
 
--- Check if visual selection is covering the node, with the cursor at the end
---- @param node TSNode
---- @param start treeclimber.Pos
---- @param end_ treeclimber.Pos
-local function is_selected_cursor_end(node, start, end_)
-	local sr, sc, er, ec = node:range()
-
-	return er == start.row and ec == (start.col + 1) and sr == end_.row and sc == (end_.col - 1)
-end
-
----@deprecated use `is_selected_cursor_start_v2`
----@param node TSNode
----@param start treeclimber.Pos
----@param end_ treeclimber.Pos
-local function is_selected_cursor_start(node, start, end_)
-	local sr, sc, er, ec = node:range()
-	return sr == start.row and sc == start.col and er == end_.row and ec == end_.col
-end
-
----Apply highlights
----@param node TSNode
+-- Apply highlights to various regions, defined relative to the selected node.
+-- Important Note: Although it is possible to set the priority of the highlights attached to
+-- extmarks explicitly using the 'priority' field of the option table passed to
+-- nvim_buf_set_extmark(), this function omits the 'priority' field and relies instead on the order
+-- in which the extmarks are created. To understand how this works, visualize a virtual, sorted
+-- list of extmarks, in which the highlighting of later marks overrides that of earlier marks. Marks
+-- are added by nvim_buf_set_extmark(), which maintains the sort order according to the following
+-- logic... To find the position at which to insert the new mark, traverse the list from the start,
+-- looking for the first mark that meets either of the following conditions:
+-- 1. start point is past start point of the inserted mark
+-- 2. hl_group is different from inserted mark's hl_group, but both the hl_group and start position
+--    of the previous mark match those of the inserted mark.
+-- If such a mark is found, the new mark is added before it; otherwise the new mark is appended.
+-- Another way of visualizing it is that the list is sorted first by mark start point, but multiple
+-- marks added at the same start point undergo an order-preserving sort by hl_group, in which the
+-- relative ordering of the hl_groups is determined by the insert time of the first mark added to
+-- the group at that start position.
+-- @param node TSNode
 local function apply_decoration(node)
 	argcheck("treeclimber.api.apply_decoration", 1, "userdata", node)
 
-	a.nvim_buf_clear_namespace(0, ns, 0, -1)
+	clear_namespace()
 
-	local function cb()
-		-- FIXME: expand gets stuck when...
-		-- 1. starting on variable name (mode) below
-		-- 2. starting on equal
-		-- TODO: Try removing the debug statements tomorrow...
-		vim.defer_fn(function()
-			local mode = a.nvim_get_mode()
-			if mode.blocking == false and mode.mode ~= "v" then
-				a.nvim_buf_clear_namespace(0, ns, 0, -1)
-			else
-				cb()
-			end
-		end, 500)
+	-- Find out which regions are active so we can avoid setting marks for ones that aren't.
+	local regions = get_active_highlights()
+
+	-- Determine whether attributes bleed through from Parent to Siblings.
+	local inherit_attrs = Config:get("display.regions.inherit_attrs")
+
+	-- Highlight the currently selected node.
+	if regions.Selection then
+		local sl, sc = unpack({ node:start() })
+		local el, ec = unpack({ node:end_() })
+		a.nvim_buf_set_extmark(0, ns, sl, sc, {
+			hl_group = "Selection",
+			strict = false,
+			end_line = el,
+			end_col = ec,
+		})
 	end
 
-	cb()
-
 	local parent = node:parent()
-
 	if parent then
-		local sl, sc = unpack({ parent:start() })
+		local psl, psc = unpack({ parent:start() })
+		local pel, pec = unpack({ parent:end_() })
+		-- Save a copy of parent start pos that won't be updated in loop.
+		local psl_, psc_ = psl, psc
 
-		a.nvim_buf_set_extmark(0, ns, sl, sc, {
-			hl_group = "TreeClimberParentStart",
-			strict = false,
-		})
-
-		for child in parent:iter_children() do
-			if child:id() ~= node:id() and child:named() then
-				local el, ec = unpack({ child:end_() })
-
-				a.nvim_buf_set_extmark(0, ns, sl, sc, {
-					hl_group = "TreeClimberSiblingBoundary",
+		if regions.Parent and inherit_attrs then
+			-- Create single Parent region to span all Siblings.
+			-- Note: Creating before any Siblings ensures the latter's colors will take
+			-- precedence in areas of overlap; attrs like bold and italic, however, will
+			-- bleed through.
+			if psl < pel or psc < pec then
+				a.nvim_buf_set_extmark(0, ns, psl, psc, {
+					hl_group = "Parent",
 					strict = false,
-					-- end_line = sl,
-					end_col = sc + 1,
-				})
-
-				a.nvim_buf_set_extmark(0, ns, sl, sc + 1, {
-					hl_group = "TreeClimberSibling",
-					strict = false,
-					end_line = el,
-					end_col = ec,
+					end_line = pel,
+					end_col = pec,
 				})
 			end
+		end
+		-- Loop over children, creating regions for named children only.
+		-- Note: If not inherit_attrs, we'll also be creating discontiguous Parent regions
+		-- in the space between siblings.
+		-- Rationale: This is the only way to ensure that attributes like bold and italic
+		-- don't "bleed through" the Sibling.
+		-- TODO: If the Parent highlight contains only fg/bg colors (no bold, italic, etc.),
+		-- we could probably create a single Parent that spans all.
+		for child in parent:iter_children() do
+			-- Note: Current Parent segment is ended only by a named child.
+			if child:named() then
+				local csl, csc = unpack({ child:start() })
+				local cel, cec = unpack({ child:end_() })
+				if Pos:new(csl, csc) < Pos:new(psl, psc) then
+					csl, csc = psl, psc
+				end
+				-- Don't highlight the current node as sibling.
+				if child:id() ~= node:id() then
+					if regions.SiblingStart then
+						a.nvim_buf_set_extmark(0, ns, csl, csc, {
+							hl_group = "SiblingStart",
+							strict = false,
+							end_col = csc + 1,
+						})
+					end
+
+					if regions.Sibling then
+						-- Caveat: Skip the first char of sibling iff
+						-- SiblingStart group enabled.
+						a.nvim_buf_set_extmark(0, ns, csl,
+							regions.SiblingStart and csc + 1 or csc, {
+							hl_group = "Sibling",
+							strict = false,
+							end_line = cel,
+							end_col = cec,
+							--priority = pris.Sibling,
+						})
+					end
+				end
+				if regions.Parent and not inherit_attrs then
+					if psl < csl or psc < csc then
+						-- Close current parent region (if nonzero width).
+						a.nvim_buf_set_extmark(0, ns, psl, psc, {
+							hl_group = "Parent",
+							strict = false,
+							end_line = csl,
+							end_col = csc,
+						})
+					end
+					-- End of sibling begins new parent region.
+					psl, psc = cel, cec
+				end
+			end
+		end
+		if regions.Parent and not inherit_attrs then
+			-- Create the final discontiguous Parent region (iff it's nonzero length).
+			if psl < pel or psc < pec then
+				a.nvim_buf_set_extmark(0, ns, psl, psc, {
+					hl_group = "Parent",
+					strict = false,
+					end_line = pel,
+					end_col = pec,
+				})
+			end
+		end
+		-- This region is placed last to make it highest priority.
+		-- Rationale: Always show the start of the parent, even at the expense of obscuring
+		-- first char of first child.
+		if regions.ParentStart then
+			a.nvim_buf_set_extmark(0, ns, psl_, psc_, {
+				hl_group = "ParentStart",
+				strict = false,
+				end_col = psc_ + 1,
+			})
 		end
 	end
 end
@@ -569,8 +714,8 @@ function api.select_current_node()
 
 	-- Design Decision: select_current_node clears node stack.
 	clear_history()
-	apply_decoration(node)
 	visually_select_node(node)
+	apply_decoration(node)
 end
 
 -- FIXME: Looks like maybe we're getting a nil when we try to climb too high!
@@ -587,7 +732,6 @@ function api.select_expand()
 	if node_is_selected(node, range:to_list()) then
 		-- Expand the selection.
 		node = api.node.grow(node)
-
 		if not node then
 			return
 		end
@@ -601,8 +745,8 @@ function api.select_expand()
 			push_history(range:to_list())
 		end
 	end
-	apply_decoration(node)
 	visually_select_node(node)
+	apply_decoration(node)
 end
 
 function api.select_shrink()
@@ -627,11 +771,11 @@ function api.select_shrink()
 
 	-- Treat the single and multi-node cases differently.
 	if #nodes == 1 then
-		apply_decoration(nodes[1])
 		visually_select_node(nodes[1])
 	elseif #nodes > 1 then
 		visually_select_nodes(nodes)
 	end
+	apply_decoration(nodes[1])
 
 end
 
@@ -659,8 +803,8 @@ function api.select_top_level()
 		return
 	end
 
-	apply_decoration(node)
 	visually_select_node(node)
+	apply_decoration(node)
 end
 
 -- TODO: Use TSNode:extra() to skip comments (here and everywhere), but consider how best
@@ -680,8 +824,8 @@ function api.select_forward_end()
 	end
 
 	clear_history()
-	apply_decoration(node)
 	visually_select_node(node, true)
+	apply_decoration(node)
 end
 
 function api.select_backward()
@@ -702,11 +846,11 @@ function api.select_backward()
 	end
 
 	clear_history()
-	apply_decoration(node)
 	visually_select_node(node)
+	apply_decoration(node)
 end
 
-function api.select_siblings_backward()
+function api.select_first_sibling()
 	local start, end_ = api.buf.get_selection_range():positions()
 	local node = get_covering_node(start, end_)
 
@@ -719,14 +863,14 @@ function api.select_siblings_backward()
 	end
 
 	clear_history()
-	apply_decoration(node)
 	visually_select_node(node)
+	apply_decoration(node)
 end
 
 -- TODO: Consider whether it would be better to select first or last sibling *at same level* as
 -- multiply-selected nodes. (Current logic will select first or last sibling of parent when multiple
 -- nodes are selected.)
-function api.select_siblings_forward()
+function api.select_last_sibling()
 	local start, end_ = api.buf.get_selection_range():positions()
 	local node = get_covering_node(start, end_)
 
@@ -739,8 +883,8 @@ function api.select_siblings_forward()
 	end
 
 	clear_history()
-	apply_decoration(node)
 	visually_select_node(node)
+	apply_decoration(node)
 end
 
 function api.select_forward()
@@ -760,8 +904,8 @@ function api.select_forward()
 	end
 
 	clear_history()
-	apply_decoration(node)
 	visually_select_node(node)
+	apply_decoration(node)
 end
 
 function api.select_grow_forward()
@@ -800,20 +944,11 @@ end
 ---@param node TSNode
 ---@return TSNode?
 function api.node.grow(node)
-	local next = node
-	local range = Range.from_node(node)
-
-	if not next then
-		return
+	if not node then
+		-- Note: This is really probably an internal error; consider assert().
+		return nil
 	end
-
-	if not api.node.has_range(next, range) then
-		return next
-	end
-
-	local ancestor = api.get_larger_ancestor(next, range)
-
-	return ancestor or next
+	return api.get_larger_ancestor(node)
 end
 
 ---@param nodes TSNode[]
