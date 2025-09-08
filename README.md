@@ -73,17 +73,26 @@ To manually specify the configuration options, take a look at the contents of `l
 For example, if you just want the built in user commands and highlights but you want your own keybindings, you can do the following:
 
 ```lua
-
 local tc = require('nvim-treeclimber')
 
 tc.setup_augroups()
 tc.setup_user_commands()
 
--- Copied from setup_keymaps
-vim.keymap.set("n", "<leader>k", tc.show_control_flow, {})
-vim.keymap.set({ "x", "o" }, "i.", tc.select_current_node, { desc = "select current node" })
-vim.keymap.set({ "x", "o" }, "a.", tc.select_expand, { desc = "select parent node" })
-...
+-- Define your own keymaps using <Plug> mappings
+vim.keymap.set("n", "<leader>k", "<Plug>(treeclimber-show-control-flow)", {})
+vim.keymap.set({ "x", "o" }, "i.", "<Plug>(treeclimber-select-current-node)", {})
+vim.keymap.set({ "x", "o" }, "a.", "<Plug>(treeclimber-select-expand)", {})
+vim.keymap.set({ "n", "x", "o" }, "<M-e>", "<Plug>(treeclimber-select-forward-end)", {})
+vim.keymap.set({ "n", "x", "o" }, "<M-b>", "<Plug>(treeclimber-select-backward)", {})
+vim.keymap.set({ "n", "x", "o" }, "<M-h>", "<Plug>(treeclimber-select-previous)", {})
+vim.keymap.set({ "n", "x", "o" }, "<M-j>", "<Plug>(treeclimber-select-shrink)", {})
+vim.keymap.set({ "n", "x", "o" }, "<M-k>", "<Plug>(treeclimber-select-parent)", {})
+vim.keymap.set({ "n", "x", "o" }, "<M-l>", "<Plug>(treeclimber-select-next)", {})
+vim.keymap.set({ "n", "x", "o" }, "<M-L>", "<Plug>(treeclimber-select-grow-forward)", {})
+vim.keymap.set({ "n", "x", "o" }, "<M-H>", "<Plug>(treeclimber-select-grow-backward)", {})
+vim.keymap.set({ "n", "x", "o" }, "<M-[>", "<Plug>(treeclimber-select-siblings-backward)", {})
+vim.keymap.set({ "n", "x", "o" }, "<M-]>", "<Plug>(treeclimber-select-siblings-forward)", {})
+vim.keymap.set({ "n", "x", "o" }, "<M-g>", "<Plug>(treeclimber-select-top-level)", {})
 ```
 
 ---
