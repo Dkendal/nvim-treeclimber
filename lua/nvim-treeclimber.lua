@@ -16,7 +16,7 @@ local default_config = {
 	}
 }
 
-vim.g.treeclimber = vim.tbl_deep_extend('force', {}, default_config)
+vim.g.treeclimber = vim.tbl_deep_extend('force', default_config, vim.g.treeclimber or {} )
 
 ---@param opts treeclimber.PartialConfig
 function M.set_config(opts)

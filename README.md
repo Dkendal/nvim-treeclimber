@@ -62,6 +62,93 @@ require('nvim-treeclimber').setup()
 
 ## Configuration
 
+The plugin can be configured in three ways:
+
+1. **Using `setup()` function:**
+```lua
+require('nvim-treeclimber').setup({
+  highlight = { auto = true }  -- or other highlight options (see below)
+})
+```
+
+2. **Using lazy.nvim opts:**
+```lua
+{
+  "dkendal/nvim-treeclimber",
+  opts = {
+    highlight = { auto = true }
+  }
+}
+```
+
+3. **Setting vim.g.treeclimber directly:**
+```lua
+vim.g.treeclimber = {
+  highlight = { auto = true }
+}
+```
+
+### Configuration Options
+
+#### highlight
+
+Controls the visual highlighting of treesitter nodes during navigation. Can be:
+
+- `{ auto = true }` (default) - Enable automatic highlighting with default blend value (50)
+- `false` - Disable all highlighting  
+- `true` - Enable highlighting with default blend value (50)
+- `number` - Enable highlighting with custom blend value (0-100, where 0 is no blend and 100 is full blend)
+- `function` - Custom function for dynamic highlight setup (e.g., colorscheme changes)
+
+**Examples:**
+
+```lua
+-- Disable highlighting
+require('nvim-treeclimber').setup({
+  highlight = false
+})
+
+-- Custom blend value (lighter highlighting)
+require('nvim-treeclimber').setup({
+  highlight = 25
+})
+
+-- Dynamic highlight function (adapts to colorscheme changes)
+require('nvim-treeclimber').setup({
+  highlight = function()
+    local hi = require("nvim-treeclimber.hi")
+    
+    local Normal = hi.get_hl("Normal", { follow = true })
+    local normal = hi.HSLUVHighlight:new(Normal)
+    
+    local Visual = hi.get_hl("Visual", { follow = true })
+    local visual = hi.HSLUVHighlight:new(Visual)
+    
+    local blend_value = 50
+    local set_hl = vim.api.nvim_set_hl
+    set_hl(0, "TreeClimberSiblingBoundary", { background = visual.bg.mix(normal.bg, blend_value).hex })
+    set_hl(0, "TreeClimberSibling", { background = visual.bg.mix(normal.bg, blend_value).hex })
+    set_hl(0, "TreeClimberParent", { background = visual.bg.mix(normal.bg, blend_value).hex })
+    set_hl(0, "TreeClimberParentStart", { background = visual.bg.mix(normal.bg, blend_value).hex })
+  end
+})
+
+-- For hardcoded highlights, disable the plugin's highlighting and set your own:
+require('nvim-treeclimber').setup({
+  highlight = false
+})
+vim.api.nvim_set_hl(0, "TreeClimberSiblingBoundary", { bg = "#3c3836" })
+vim.api.nvim_set_hl(0, "TreeClimberSibling", { bg = "#504945" })
+vim.api.nvim_set_hl(0, "TreeClimberParent", { bg = "#665c54" })
+vim.api.nvim_set_hl(0, "TreeClimberParentStart", { bg = "#7c6f64" })
+```
+
+The plugin automatically creates these highlight groups that blend the Visual highlight with the Normal background color:
+- `TreeClimberSiblingBoundary` - Highlights sibling boundaries
+- `TreeClimberSibling` - Highlights sibling nodes  
+- `TreeClimberParent` - Highlights parent nodes
+- `TreeClimberParentStart` - Highlights parent node start
+
 ### Lazy.nvim Configuration
 
 If you're using [lazy.nvim](https://github.com/folke/lazy.nvim), you can configure nvim-treeclimber with lazy-loaded key mappings:
@@ -117,4 +204,4 @@ vim.keymap.del({ "n", "x", "o" }, "<M-l>")
 
 ---
 
-Copyright Dylan Kendal 2022.
+Copyright Dylan Kendal 2025.
