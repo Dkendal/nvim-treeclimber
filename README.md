@@ -9,23 +9,22 @@ Requires neovim >= 0.10.
 
 ### Navigation
 
-| Key binding   | Action                                                                                                                                                                            | Demo                                                                                                                          |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `alt-h`       | Select the previous sibling node.                                                                                                                                                 | ![select-prev](https://user-images.githubusercontent.com/3162299/203088192-5c3a7f49-aa8f-4927-b9f2-1dc9c5245364.gif)          |
-| `alt-j`       | Shrink selection. The video also shows growing the selection first. Shrinking selects a child node from the current node, or will undo the action of a previous expand operation. | ![select-shrink](https://user-images.githubusercontent.com/3162299/203088198-1c326834-bf6f-4782-9750-a04e319d449d.gif)        |
-| `alt-k`       | Expand selection by selecting the parent of the current node or node under the cursor.                                                                                            | ![select-expand](https://user-images.githubusercontent.com/3162299/203088161-c29d3413-4e58-4da4-ae7e-f8ab6b379157.gif)        |
-| `alt-l`       | Select the next sibling node.                                                                                                                                                     | ![select-next](https://user-images.githubusercontent.com/3162299/203088185-3f0cb56a-a6b0-4f02-b402-c1bd8adbacae.gif)          |
-| `alt-shift-l` | Add the next sibling to the selection.                                                                                                                                            | ![grow-selection-next](https://user-images.githubusercontent.com/3162299/203088148-4d486a42-4359-436b-b446-f1947bf4ec46.gif)  |
-| `alt-shift-h` | Add the previous sibling to the selection.                                                                                                                                        | ![grow-selection-prev](https://user-images.githubusercontent.com/3162299/203088157-84a4510e-eb5c-4689-807a-6540c0593098.gif)  |
-| `alt-[`       | Select the first sibling relative to the current node.                                                                                                                            | ![select-first-sibling](https://user-images.githubusercontent.com/3162299/203088171-94a044e4-a07d-428b-a2be-c62dfc061672.gif) |
-| `alt-]`       | Select the last sibling relative to the current node .                                                                                                                            | ![select-last-sibling](https://user-images.githubusercontent.com/3162299/203088178-5c8a2286-1b67-48c6-be6d-16729cb0851c.gif)  |
-| `alt-g`       | Select the top level node relative to the cursor or selection.                                                                                                                     | ![select-top-level](https://user-images.githubusercontent.com/3162299/203088210-2846ab50-18ff-48d2-aef1-308369cbc395.gif)     |
-
-### Inspection
-
-| Key binding | Action                                                                      | Demo                                     |
-| ----------- | --------------------------------------------------------------------------- | ---------------------------------------- |
-| `leader-k`  | Populate the quick fix with all branches required to reach the current node | [:TCShowControlFlow](#tcshowcontrolflow) |
+| Plug Mapping | Mode | Action | Demo |
+| ------------ | ---- | ------ | ---- |
+| `<Plug>(treeclimber-select-previous)` | n,x,o | Select the previous sibling node | ![select-prev](https://user-images.githubusercontent.com/3162299/203088192-5c3a7f49-aa8f-4927-b9f2-1dc9c5245364.gif) |
+| `<Plug>(treeclimber-select-shrink)` | n,x,o | Shrink selection (select child node) | ![select-shrink](https://user-images.githubusercontent.com/3162299/203088198-1c326834-bf6f-4782-9750-a04e319d449d.gif) |
+| `<Plug>(treeclimber-select-parent)` | n,x,o | Expand selection (select parent node) | ![select-expand](https://user-images.githubusercontent.com/3162299/203088161-c29d3413-4e58-4da4-ae7e-f8ab6b379157.gif) |
+| `<Plug>(treeclimber-select-next)` | n,x,o | Select the next sibling node | ![select-next](https://user-images.githubusercontent.com/3162299/203088185-3f0cb56a-a6b0-4f02-b402-c1bd8adbacae.gif) |
+| `<Plug>(treeclimber-select-grow-forward)` | n,x,o | Grow selection forward (add next sibling) | ![grow-selection-next](https://user-images.githubusercontent.com/3162299/203088148-4d486a42-4359-436b-b446-f1947bf4ec46.gif) |
+| `<Plug>(treeclimber-select-grow-backward)` | n,x,o | Grow selection backward (add previous sibling) | ![grow-selection-prev](https://user-images.githubusercontent.com/3162299/203088157-84a4510e-eb5c-4689-807a-6540c0593098.gif) |
+| `<Plug>(treeclimber-select-siblings-backward)` | n,x,o | Select first sibling | ![select-first-sibling](https://user-images.githubusercontent.com/3162299/203088171-94a044e4-a07d-428b-a2be-c62dfc061672.gif) |
+| `<Plug>(treeclimber-select-siblings-forward)` | n,x,o | Select last sibling | ![select-last-sibling](https://user-images.githubusercontent.com/3162299/203088178-5c8a2286-1b67-48c6-be6d-16729cb0851c.gif) |
+| `<Plug>(treeclimber-select-top-level)` | n,x,o | Select top-level node | ![select-top-level](https://user-images.githubusercontent.com/3162299/203088210-2846ab50-18ff-48d2-aef1-308369cbc395.gif) |
+| `<Plug>(treeclimber-select-backward)` | n,x,o | Select and move to node start | |
+| `<Plug>(treeclimber-select-forward-end)` | n,x,o | Select and move to node end | |
+| `<Plug>(treeclimber-show-control-flow)` | n | Show control flow | |
+| `<Plug>(treeclimber-select-current-node)` | x,o | Select current node (inner) | |
+| `<Plug>(treeclimber-select-expand)` | x,o | Select parent node (around) | |
 
 ### Commands
 
@@ -61,38 +60,59 @@ vim.cmd.packadd('nvim-treeclimber')
 require('nvim-treeclimber').setup()
 ```
 
-If you want to change the default keybindings, call `require('nvim-treeclimber')` rather than calling setup.
-See [configuration](#configuration).
-
 ## Configuration
 
-**To use default highlight, keymaps, and commands call `require('nvim-treeclimber').setup()`.**
+### Lazy.nvim Configuration
 
-To manually specify the configuration options, take a look at the contents of `lua/nvim-treeclimber.lua` and import or modify the portions that you need.
+If you're using [lazy.nvim](https://github.com/folke/lazy.nvim), you can configure nvim-treeclimber with lazy-loaded key mappings:
 
-For example, if you just want the built in user commands and highlights but you want your own keybindings, you can do the following:
+```lua
+return {
+  "dkendal/nvim-treeclimber",
+  config = function()
+    require('nvim-treeclimber').setup()
+  end,
+  keys = {
+    -- Core navigation
+    { "<M-h>", "<Plug>(treeclimber-select-previous)", mode = { "n", "x", "o" }, desc = "Select previous node" },
+    { "<M-l>", "<Plug>(treeclimber-select-next)", mode = { "n", "x", "o" }, desc = "Select next node" },
+    { "<M-k>", "<Plug>(treeclimber-select-parent)", mode = { "n", "x", "o" }, desc = "Select parent node" },
+    { "<M-j>", "<Plug>(treeclimber-select-shrink)", mode = { "n", "x", "o" }, desc = "Select child node" },
+    -- Growth selection
+    { "<M-H>", "<Plug>(treeclimber-select-grow-backward)", mode = { "n", "x", "o" }, desc = "Grow selection backward" },
+    { "<M-L>", "<Plug>(treeclimber-select-grow-forward)", mode = { "n", "x", "o" }, desc = "Grow selection forward" },
+    -- Sibling navigation
+    { "<M-[>", "<Plug>(treeclimber-select-siblings-backward)", mode = { "n", "x", "o" }, desc = "Select first sibling" },
+    { "<M-]>", "<Plug>(treeclimber-select-siblings-forward)", mode = { "n", "x", "o" }, desc = "Select last sibling" },
+    -- Top level
+    { "<M-g>", "<Plug>(treeclimber-select-top-level)", mode = { "n", "x", "o" }, desc = "Select top-level node" },
+    -- Movement selection
+    { "<M-b>", "<Plug>(treeclimber-select-backward)", mode = { "n", "x", "o" }, desc = "Select and move to node start" },
+    { "<M-e>", "<Plug>(treeclimber-select-forward-end)", mode = { "n", "x", "o" }, desc = "Select and move to node end" },
+    -- Visual/operator mode specific
+    { "i.", "<Plug>(treeclimber-select-current-node)", mode = { "x", "o" }, desc = "Select current node (inner)" },
+    { "a.", "<Plug>(treeclimber-select-expand)", mode = { "x", "o" }, desc = "Select parent node (around)" },
+    -- Commands
+    { "<leader>k", "<Plug>(treeclimber-show-control-flow)", mode = "n", desc = "Show control flow" },
+  },
+  cmd = { "TCDiffThis", "TCShowControlFlow", "TCHighlightExternalDefinitions" },
+}
+```
+
+### Custom Key Bindings
+
+To customize key bindings, use the `<Plug>` mappings from the table above. For example, to use `H/L` for navigation instead of Alt+h/l:
 
 ```lua
 local tc = require('nvim-treeclimber')
 
-tc.setup_augroups()
-tc.setup_user_commands()
+-- Use custom keys
+vim.keymap.set({ "n", "x", "o" }, "H", "<Plug>(treeclimber-select-previous)")
+vim.keymap.set({ "n", "x", "o" }, "L", "<Plug>(treeclimber-select-next)")
 
--- Define your own keymaps using <Plug> mappings
-vim.keymap.set("n", "<leader>k", "<Plug>(treeclimber-show-control-flow)", {})
-vim.keymap.set({ "x", "o" }, "i.", "<Plug>(treeclimber-select-current-node)", {})
-vim.keymap.set({ "x", "o" }, "a.", "<Plug>(treeclimber-select-expand)", {})
-vim.keymap.set({ "n", "x", "o" }, "<M-e>", "<Plug>(treeclimber-select-forward-end)", {})
-vim.keymap.set({ "n", "x", "o" }, "<M-b>", "<Plug>(treeclimber-select-backward)", {})
-vim.keymap.set({ "n", "x", "o" }, "<M-h>", "<Plug>(treeclimber-select-previous)", {})
-vim.keymap.set({ "n", "x", "o" }, "<M-j>", "<Plug>(treeclimber-select-shrink)", {})
-vim.keymap.set({ "n", "x", "o" }, "<M-k>", "<Plug>(treeclimber-select-parent)", {})
-vim.keymap.set({ "n", "x", "o" }, "<M-l>", "<Plug>(treeclimber-select-next)", {})
-vim.keymap.set({ "n", "x", "o" }, "<M-L>", "<Plug>(treeclimber-select-grow-forward)", {})
-vim.keymap.set({ "n", "x", "o" }, "<M-H>", "<Plug>(treeclimber-select-grow-backward)", {})
-vim.keymap.set({ "n", "x", "o" }, "<M-[>", "<Plug>(treeclimber-select-siblings-backward)", {})
-vim.keymap.set({ "n", "x", "o" }, "<M-]>", "<Plug>(treeclimber-select-siblings-forward)", {})
-vim.keymap.set({ "n", "x", "o" }, "<M-g>", "<Plug>(treeclimber-select-top-level)", {})
+-- Remove default Alt key bindings (optional)
+vim.keymap.del({ "n", "x", "o" }, "<M-h>")
+vim.keymap.del({ "n", "x", "o" }, "<M-l>")
 ```
 
 ---
