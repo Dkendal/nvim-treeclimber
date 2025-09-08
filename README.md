@@ -188,7 +188,7 @@ return {
 
 ### Custom Key Bindings
 
-To customize key bindings, use the `<Plug>` mappings from the table above. For example, to use `H/L` for navigation instead of Alt+h/l:
+To customize key bindings, use the `<Plug>` mappings from the table above. For example, to use `H/L` for navigation:
 
 ```lua
 local tc = require('nvim-treeclimber')
@@ -196,11 +196,9 @@ local tc = require('nvim-treeclimber')
 -- Use custom keys
 vim.keymap.set({ "n", "x", "o" }, "H", "<Plug>(treeclimber-select-previous)")
 vim.keymap.set({ "n", "x", "o" }, "L", "<Plug>(treeclimber-select-next)")
-
--- Remove default Alt key bindings (optional)
-vim.keymap.del({ "n", "x", "o" }, "<M-h>")
-vim.keymap.del({ "n", "x", "o" }, "<M-l>")
 ```
+
+Or use the `keys` attribute if you're using lazy.nvim.
 
 ---
 
