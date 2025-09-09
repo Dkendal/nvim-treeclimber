@@ -67,7 +67,7 @@ The plugin can be configured in three ways:
 1. **Using `setup()` function:**
 ```lua
 require('nvim-treeclimber').setup({
-  highlight = { auto = true }  -- or other highlight options (see below)
+  highlight = true  -- or other highlight options (see below)
 })
 ```
 
@@ -76,7 +76,7 @@ require('nvim-treeclimber').setup({
 {
   "dkendal/nvim-treeclimber",
   opts = {
-    highlight = { auto = true }
+    highlight = true
   }
 }
 ```
@@ -84,7 +84,7 @@ require('nvim-treeclimber').setup({
 3. **Setting vim.g.treeclimber directly:**
 ```lua
 vim.g.treeclimber = {
-  highlight = { auto = true }
+  highlight = true
 }
 ```
 
@@ -94,10 +94,9 @@ vim.g.treeclimber = {
 
 Controls the visual highlighting of treesitter nodes during navigation. Can be:
 
-- `{ auto = true }` (default) - Enable automatic highlighting with default blend value (50)
-- `false` - Disable all highlighting  
-- `true` - Enable highlighting with default blend value (50)
-- `number` - Enable highlighting with custom blend value (0-100, where 0 is no blend and 100 is full blend)
+- `true` (default) - Enable automatic highlighting with default blend value (50)
+- `false` - Disable all highlighting
+- `number` - Enable highlighting with custom blend value between the Visual and Normal highlights (0-100, where 0 is the same as Visual and 100 is the same as Normal)
 - `function` - Custom function for dynamic highlight setup (e.g., colorscheme changes)
 
 **Examples:**
@@ -117,13 +116,13 @@ require('nvim-treeclimber').setup({
 require('nvim-treeclimber').setup({
   highlight = function()
     local hi = require("nvim-treeclimber.hi")
-    
+
     local Normal = hi.get_hl("Normal", { follow = true })
     local normal = hi.HSLUVHighlight:new(Normal)
-    
+
     local Visual = hi.get_hl("Visual", { follow = true })
     local visual = hi.HSLUVHighlight:new(Visual)
-    
+
     local blend_value = 50
     local set_hl = vim.api.nvim_set_hl
     set_hl(0, "TreeClimberSiblingBoundary", { background = visual.bg.mix(normal.bg, blend_value).hex })
